@@ -10,8 +10,10 @@ resource "github_repository" "this" {
   has_projects = var.has_projects
 
   # auto_init ensures the repo has a default branch to protect and seed
-  # with the gitignore/license templates below.
-  auto_init          = true
+  # with the gitignore/license templates below. Set to false when
+  # importing a repo that already has content -- auto_init only affects
+  # creation, so leaving it true would just create a spurious plan diff.
+  auto_init          = var.auto_init
   gitignore_template = var.gitignore_template
   license_template   = var.license_template
 
