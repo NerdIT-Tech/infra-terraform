@@ -55,6 +55,10 @@ jobs:
           scan-ref: .
           exit-code: "1"
           severity: "CRITICAL,HIGH"
+          # v0.70.0 (the action's own default) doesn't recognize that
+          # github_repository_vulnerability_alerts satisfies GIT-0003 for
+          # a linked github_repository -- only a later Trivy release does.
+          version: v0.72.0
 
   plan:
     name: Plan
