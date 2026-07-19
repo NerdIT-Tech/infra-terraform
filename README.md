@@ -66,19 +66,50 @@ trade-off, not the ideal setup — see the caveat below.
 
 ## CI/CD
 
-Two workflows under `.github/workflows/`:
+Three workflows under `.github/workflows/`, plus Dependabot:
 
 - **`terraform-pr.yml`** — runs on every pull request that touches `*.tf`
   files. `fmt -check`, `validate`, TFLint, and a Trivy config scan, then a
-  read-only `terraform plan` whose output is posted/updated as a PR comment.
-  Never writes to the state cache.
+  read-only `terraform plan` whose output is posted/updated as a **sticky**
+  PR comment (same comment is edited in place across pushes, keyed by an
+  HTML marker). Never writes to the state cache. The saved plan
+  (`tfplan`) is also uploaded as a build artifact so a later merge can
+  reuse it — see below.
 - **`terraform-apply.yml`** — runs on push to `main` (and via manual
-  `workflow_dispatch`). A `plan` job produces `tfplan` and uploads it as a
-  build artifact along with the pre-apply state. An `apply` job then runs
-  under the `production` GitHub Environment, which pauses for a required
-  reviewer's approval (the plan is visible in the job summary) before it
-  downloads that exact `tfplan` artifact and applies it — never a
-  freshly-recomputed plan. Nothing auto-applies unattended.
+  `workflow_dispatch`).
+  - A `resolve-pr` job first checks whether the push is a merge of a PR
+    (via GitHub's "list pull requests associated with a commit" API). If
+    so, the `plan` job **downloads that PR's already-reviewed `tfplan`
+    artifact instead of re-planning** — apply always runs exactly what was
+    shown to the reviewer on the PR, never a plan recomputed after merge.
+    Direct pushes to `main` and `workflow_dispatch` runs have no
+    associated PR, so `plan` falls back to planning fresh for those.
+  - `plan` uploads `tfplan` (whichever source) and the pre-apply state as
+    build artifacts.
+  - `apply` runs under the `production` GitHub Environment, which pauses
+    for a required reviewer's approval (the plan is visible in the job
+    summary) before downloading that exact `tfplan` artifact and applying
+    it. Nothing auto-applies unattended.
+  - Once apply succeeds for a merge-triggered run, a `cleanup-pr-comment`
+    job deletes the sticky plan comment from the now-merged PR — it's
+    been applied, so leaving the stale plan sitting on a closed PR is
+    just noise.
+  - **Caveat:** reusing a PR's plan is only safe if nothing else changed
+    the managed state between when that plan was generated and when the
+    PR merged. If the saved plan is stale relative to current state,
+    `terraform apply` fails loudly (it will not silently re-plan and
+    apply something unreviewed) — re-run via `workflow_dispatch` to plan
+    fresh in that case. Requiring PR branches to be up to date before
+    merge (branch protection) minimizes how often this happens.
+- **`conventional-commits.yml`** — lints the PR title against
+  [Conventional Commits](https://www.conventionalcommits.org/) (`feat:`,
+  `fix:`, `chore:`, etc.) using `amannn/action-semantic-pull-request`.
+  Enforced on the title only, not every commit, since PRs here are merged
+  with a merge commit and the title is what's meant to read as the
+  semantic summary.
+- **Dependabot** (`.github/dependabot.yml`) — weekly update PRs for
+  Terraform providers/modules, GitHub Actions versions used in these
+  workflows, and the devcontainer's pinned feature/image versions.
 
 ### One-time repo setup for CI
 
@@ -94,6 +125,11 @@ In the repo's **Settings**:
      found` if this happens) — base64 sidesteps that entirely.
    - Variable `TF_GITHUB_APP_ID` — the App ID.
    - Variable `TF_GITHUB_APP_INSTALLATION_ID` — the installation ID.
+3. **Settings → Branches** → add a protection rule for `main` requiring
+   the `Plan` (from `terraform-pr.yml`) and `Lint PR title` status checks,
+   and "Require branches to be up to date before merging" (keeps the
+   plan-reuse path in `terraform-apply.yml` safe from state drift between
+   review and merge).
 
 No other setup is needed — the state cache seeds itself on the first
 successful apply (cache miss → empty state → normal `terraform apply`

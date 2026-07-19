@@ -20,17 +20,47 @@ env:
   TF_IN_AUTOMATION: "true"
 
 jobs:
-  plan:
-    name: Plan
+  # Identifies the merged PR (if any) behind this push, so `plan` can reuse
+  # the exact tfplan that was reviewed on that PR instead of re-planning
+  # post-merge. Direct pushes to main and workflow_dispatch runs have no
+  # associated PR, so `plan` falls back to planning fresh for those.
+  resolve-pr:
+    name: Resolve merged PR
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      pull-requests: read
+    outputs:
+      pr-number: ${{ steps.find.outputs.pr-number }}
+    steps:
+      - name: Find merged PR for this commit
+        id: find
+        uses: actions/github-script@v9
+        with:
+          script: |
+            const { data: prs } = await github.rest.repos.listPullRequestsAssociatedWithCommit({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              commit_sha: context.sha,
+            });
+            const match = prs.find((pr) => pr.merged_at && pr.merge_commit_sha === context.sha);
+            core.setOutput("pr-number", match ? String(match.number) : "");
+            core.info(match
+              ? `Reusing plan from PR #${match.number}`
+              : "No merged PR matched this commit; planning fresh.");
+
+  plan:
+    name: Plan
+    needs: resolve-pr
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
     env:
       GITHUB_APP_ID: ${{ vars.TF_GITHUB_APP_ID }}
       GITHUB_APP_INSTALLATION_ID: ${{ vars.TF_GITHUB_APP_INSTALLATION_ID }}
       GITHUB_APP_PEM_FILE: ${{ secrets.TF_GITHUB_APP_PEM }}
-    outputs:
-      plan-outcome: ${{ steps.plan.outcome }}
+      SOURCE_PR: ${{ needs.resolve-pr.outputs.pr-number }}
     steps:
       - uses: actions/checkout@v7
 
@@ -51,14 +81,32 @@ jobs:
       - name: terraform init
         run: terraform init
 
-      - name: terraform plan
-        id: plan
+      # Reuse path: this push is a merge of a PR whose terraform-pr.yml run
+      # already produced a reviewed tfplan. Download it instead of
+      # re-planning, so apply never runs anything that wasn't reviewed.
+      - name: Download plan from merged PR
+        if: env.SOURCE_PR != ''
+        uses: dawidd6/action-download-artifact@v21
+        with:
+          workflow: terraform-pr.yml
+          pr: ${{ env.SOURCE_PR }}
+          name: tfplan
+          workflow_conclusion: success
+
+      # Fallback path: direct push to main or workflow_dispatch, with no
+      # merged PR to source a plan from.
+      - name: terraform plan (fresh)
+        if: env.SOURCE_PR == ''
         run: terraform plan -no-color -input=false -out=tfplan
 
       - name: Write plan to job summary
         run: |
           {
-            echo "### Terraform Plan";
+            if [ -n "$SOURCE_PR" ]; then
+              echo "### Terraform Plan (reused from PR #${SOURCE_PR})";
+            else
+              echo "### Terraform Plan";
+            fi
             echo '```';
             terraform show -no-color tfplan;
             echo '```';
@@ -147,3 +195,36 @@ jobs:
           path: terraform.tfstate
           retention-days: 90
           if-no-files-found: ignore
+
+  # The PR's sticky plan comment (from terraform-pr.yml) has now been
+  # applied and is no longer useful — remove it rather than leave stale
+  # plan output sitting on a closed PR.
+  cleanup-pr-comment:
+    name: Remove sticky plan comment
+    needs: [resolve-pr, apply]
+    if: needs.resolve-pr.outputs.pr-number != ''
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    steps:
+      - name: Delete sticky plan comment
+        uses: actions/github-script@v9
+        env:
+          PR_NUMBER: ${{ needs.resolve-pr.outputs.pr-number }}
+        with:
+          script: |
+            const marker = "<!-- terraform-plan -->";
+            const issue_number = Number(process.env.PR_NUMBER);
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number,
+            });
+            const existing = comments.find((c) => c.body.includes(marker));
+            if (existing) {
+              await github.rest.issues.deleteComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+              });
+            }
