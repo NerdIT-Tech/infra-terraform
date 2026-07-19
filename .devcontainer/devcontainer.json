@@ -1,6 +1,11 @@
 {
     "image": "mcr.microsoft.com/devcontainers/base:0-ubuntu-22.04",
     "features": {
-        "ghcr.io/devcontainers/features/terraform:1": {}
-    }
+        "ghcr.io/devcontainers/features/terraform:1": {},
+        "ghcr.io/roul/devcontainer-features/bitwarden-cli:1": {},
+        "./features/claude-cache": {}
+    },
+    "mounts": [
+        "source=claude-code-cache-${devcontainerId},target=/home/vscode/.claude,type=volume"
+    ]
 }
