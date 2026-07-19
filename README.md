@@ -87,8 +87,11 @@ In the repo's **Settings**:
 1. **Settings → Environments** → create `production`, add required
    reviewers. This is what gates every apply.
 2. **Settings → Secrets and variables → Actions**:
-   - Secret `TF_GITHUB_APP_PEM` — the GitHub App private key contents (the
-     same `.pem` used locally).
+   - Secret `TF_GITHUB_APP_PEM` — the **base64** of the GitHub App private
+     key file, not the raw PEM text: `base64 -w0 app-private-key.pem`.
+     Pasting the raw multi-line PEM directly into the secret box is prone
+     to newline mangling (GitHub API errors with `no decodeable PEM data
+     found` if this happens) — base64 sidesteps that entirely.
    - Variable `TF_GITHUB_APP_ID` — the App ID.
    - Variable `TF_GITHUB_APP_INSTALLATION_ID` — the installation ID.
 
