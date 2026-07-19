@@ -34,10 +34,13 @@ jobs:
       - uses: actions/checkout@v7
 
       - name: Write GitHub App private key
+        # TF_GITHUB_APP_PEM must be the base64 of the .pem file (e.g.
+        # `base64 -w0 app.pem`), not the raw PEM text -- avoids newline
+        # mangling from pasting multi-line secrets into the GitHub UI.
         run: |
           umask 077
           PEM_PATH="${RUNNER_TEMP}/app.pem"
-          printf '%s' "${{ secrets.TF_GITHUB_APP_PEM }}" > "$PEM_PATH"
+          printf '%s' "${{ secrets.TF_GITHUB_APP_PEM }}" | base64 -d > "$PEM_PATH"
           echo "GITHUB_APP_PEM_FILE=$PEM_PATH" >> "$GITHUB_ENV"
 
       - uses: hashicorp/setup-terraform@v3
@@ -108,10 +111,13 @@ jobs:
       - uses: actions/checkout@v7
 
       - name: Write GitHub App private key
+        # TF_GITHUB_APP_PEM must be the base64 of the .pem file (e.g.
+        # `base64 -w0 app.pem`), not the raw PEM text -- avoids newline
+        # mangling from pasting multi-line secrets into the GitHub UI.
         run: |
           umask 077
           PEM_PATH="${RUNNER_TEMP}/app.pem"
-          printf '%s' "${{ secrets.TF_GITHUB_APP_PEM }}" > "$PEM_PATH"
+          printf '%s' "${{ secrets.TF_GITHUB_APP_PEM }}" | base64 -d > "$PEM_PATH"
           echo "GITHUB_APP_PEM_FILE=$PEM_PATH" >> "$GITHUB_ENV"
 
       - uses: hashicorp/setup-terraform@v3
