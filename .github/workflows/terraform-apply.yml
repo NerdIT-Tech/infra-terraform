@@ -28,20 +28,11 @@ jobs:
     env:
       GITHUB_APP_ID: ${{ vars.TF_GITHUB_APP_ID }}
       GITHUB_APP_INSTALLATION_ID: ${{ vars.TF_GITHUB_APP_INSTALLATION_ID }}
+      GITHUB_APP_PEM_FILE: ${{ secrets.TF_GITHUB_APP_PEM_FILE }}
     outputs:
       plan-outcome: ${{ steps.plan.outcome }}
     steps:
       - uses: actions/checkout@v7
-
-      - name: Write GitHub App private key
-        # TF_GITHUB_APP_PEM must be the base64 of the .pem file (e.g.
-        # `base64 -w0 app.pem`), not the raw PEM text -- avoids newline
-        # mangling from pasting multi-line secrets into the GitHub UI.
-        run: |
-          umask 077
-          PEM_PATH="${RUNNER_TEMP}/app.pem"
-          printf '%s' "${{ secrets.TF_GITHUB_APP_PEM }}" | base64 -d > "$PEM_PATH"
-          echo "GITHUB_APP_PEM_FILE=$PEM_PATH" >> "$GITHUB_ENV"
 
       - uses: hashicorp/setup-terraform@v3
         with:
@@ -63,10 +54,6 @@ jobs:
       - name: terraform plan
         id: plan
         run: terraform plan -no-color -input=false -out=tfplan
-
-      - name: Remove private key
-        if: always()
-        run: rm -f "${GITHUB_APP_PEM_FILE}"
 
       - name: Write plan to job summary
         run: |
@@ -107,18 +94,9 @@ jobs:
     env:
       GITHUB_APP_ID: ${{ vars.TF_GITHUB_APP_ID }}
       GITHUB_APP_INSTALLATION_ID: ${{ vars.TF_GITHUB_APP_INSTALLATION_ID }}
+      GITHUB_APP_PEM_FILE: ${{ secrets.TF_GITHUB_APP_PEM_FILE }}
     steps:
       - uses: actions/checkout@v7
-
-      - name: Write GitHub App private key
-        # TF_GITHUB_APP_PEM must be the base64 of the .pem file (e.g.
-        # `base64 -w0 app.pem`), not the raw PEM text -- avoids newline
-        # mangling from pasting multi-line secrets into the GitHub UI.
-        run: |
-          umask 077
-          PEM_PATH="${RUNNER_TEMP}/app.pem"
-          printf '%s' "${{ secrets.TF_GITHUB_APP_PEM }}" | base64 -d > "$PEM_PATH"
-          echo "GITHUB_APP_PEM_FILE=$PEM_PATH" >> "$GITHUB_ENV"
 
       - uses: hashicorp/setup-terraform@v3
         with:
@@ -140,10 +118,6 @@ jobs:
 
       - name: terraform apply
         run: terraform apply -input=false -auto-approve tfplan
-
-      - name: Remove private key
-        if: always()
-        run: rm -f "${GITHUB_APP_PEM_FILE}"
 
       # actions/cache never overwrites an existing key, so the previous
       # entry has to be deleted before the post-apply state can be saved
