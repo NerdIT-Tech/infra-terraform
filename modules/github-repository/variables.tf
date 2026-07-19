@@ -9,6 +9,12 @@ variable "description" {
   default     = ""
 }
 
+variable "auto_init" {
+  description = "Initialize the repository with a default branch on creation. Only affects creation -- set to false when importing a repo that already has content, to avoid a spurious plan diff."
+  type        = bool
+  default     = true
+}
+
 variable "visibility" {
   description = "Repository visibility: \"public\" or \"private\"."
   type        = string

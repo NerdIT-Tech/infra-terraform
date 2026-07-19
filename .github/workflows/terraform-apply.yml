@@ -52,6 +52,7 @@ jobs:
   plan:
     name: Plan
     needs: resolve-pr
+    environment: production
     runs-on: ubuntu-latest
     permissions:
       contents: read

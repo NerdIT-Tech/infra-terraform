@@ -30,6 +30,7 @@ module "pkg_linux" {
   description = "" # TODO: confirm/edit description
   visibility  = "public"
   topics      = []
+  auto_init   = false
 
   has_wiki     = true
   has_projects = true
@@ -49,6 +50,7 @@ module "secret_lifecycle_orchestrator" {
   description = "" # TODO: confirm/edit description
   visibility  = "public"
   topics      = []
+  auto_init   = false
 
   has_wiki     = true
   has_projects = true
@@ -68,6 +70,7 @@ module "infra_runners" {
   description = "" # TODO: confirm/edit description
   visibility  = "public"
   topics      = []
+  auto_init   = false
 
   has_wiki     = true
   has_projects = true
