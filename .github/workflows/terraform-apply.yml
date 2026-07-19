@@ -31,7 +31,7 @@ jobs:
     outputs:
       plan-outcome: ${{ steps.plan.outcome }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Write GitHub App private key
         run: |
@@ -47,7 +47,7 @@ jobs:
       # Cache miss on the very first run is expected: terraform starts
       # from an empty state and the first apply seeds the cache.
       - name: Restore state cache
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v6
         with:
           path: terraform.tfstate
           key: terraform-state-v1
@@ -79,14 +79,14 @@ jobs:
       # and reviewed here — not on whatever the cache happens to hold by
       # the time a reviewer approves.
       - name: Upload plan artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: tfplan
           path: tfplan
           retention-days: 5
 
       - name: Upload pre-apply state artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: terraform-state-pre-apply
           path: terraform.tfstate
@@ -105,7 +105,7 @@ jobs:
       GITHUB_APP_ID: ${{ vars.TF_GITHUB_APP_ID }}
       GITHUB_APP_INSTALLATION_ID: ${{ vars.TF_GITHUB_APP_INSTALLATION_ID }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Write GitHub App private key
         run: |
@@ -119,12 +119,12 @@ jobs:
           terraform_version: ${{ env.TF_VERSION }}
 
       - name: Download plan artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: tfplan
 
       - name: Download pre-apply state artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: terraform-state-pre-apply
         continue-on-error: true
@@ -152,7 +152,7 @@ jobs:
 
       - name: Save state cache
         if: always()
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v6
         with:
           path: terraform.tfstate
           key: terraform-state-v1
@@ -161,7 +161,7 @@ jobs:
       # outcome since terraform writes state incrementally as it applies.
       - name: Upload post-apply state artifact
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: terraform-state-post-apply
           path: terraform.tfstate
