@@ -8,6 +8,14 @@ updates:
       prefix: "chore"
       include: "scope"
 
+  - package-ecosystem: "terraform"
+    directory: "/bootstrap"
+    schedule:
+      interval: "weekly"
+    commit-message:
+      prefix: "chore"
+      include: "scope"
+
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:

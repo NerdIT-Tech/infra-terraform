@@ -1,0 +1,4 @@
+# Copy to terraform.tfvars (gitignored) and fill in before the first apply.
+
+aws_region        = "us-east-1"
+state_bucket_name = "nerdit-tech-terraform-state" # must be globally unique across all of AWS -- check availability first

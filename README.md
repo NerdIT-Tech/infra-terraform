@@ -16,6 +16,11 @@ teams/permissions/etc. as they're added later.
   ([ADR-0009](docs/adr/0009-one-module-per-repo.md)).
 - `repositories.tf` — one `module` block per repository this org manages.
 - `providers.tf`, `versions.tf`, `variables.tf`, `outputs.tf` — root wiring.
+- `bootstrap/` — a separate, rarely-touched Terraform config that creates
+  this repo's own state backend (S3 bucket, DynamoDB lock table, CI's AWS
+  IAM roles). Applied by hand, never by CI — see
+  [`bootstrap/README.md`](bootstrap/README.md) and
+  [ADR-0010](docs/adr/0010-s3-state-backend.md).
 
 ### Adding a repository
 
@@ -63,11 +68,50 @@ terraform plan
 
 ## State
 
-State is **local** (`terraform.tfstate`, gitignored) — there's no `backend`
-block in `versions.tf`. For CI, `terraform.tfstate` is persisted in the
-GitHub Actions cache between runs instead
-([ADR-0002](docs/adr/0002-local-state-via-actions-cache.md), including the
-trade-offs that come with it).
+State lives in an S3 bucket, locked via a DynamoDB table
+([ADR-0010](docs/adr/0010-s3-state-backend.md), which supersedes the
+earlier Actions-cache approach in
+[ADR-0002](docs/adr/0002-local-state-via-actions-cache.md)). The bucket,
+lock table, and CI's AWS IAM roles are created by
+[`bootstrap/`](bootstrap/README.md) — a separate config, applied by hand,
+never by CI.
+
+`versions.tf`'s `backend "s3" {}` block is empty on purpose: bucket/region/
+lock-table are account-specific values supplied via `-backend-config` at
+`terraform init` time, not hardcoded. Locally:
+
+```sh
+terraform init \
+  -backend-config="bucket=<TF_STATE_BUCKET>" \
+  -backend-config="key=terraform.tfstate" \
+  -backend-config="region=<AWS_REGION>" \
+  -backend-config="dynamodb_table=<TF_STATE_DYNAMODB_TABLE>"
+```
+
+CI authenticates to AWS via GitHub Actions OIDC (`aws-actions/configure-aws-credentials`),
+assuming one of two IAM roles created by `bootstrap/`:
+
+- `TF_AWS_PLAN_ROLE_ARN` — read-only, used by `terraform-pr.yml` and by
+  `terraform-apply.yml`'s `plan` job. Can't write state under any
+  circumstances, so a PR plan can never corrupt it.
+- `TF_AWS_APPLY_ROLE_ARN` — read-write, used only by `terraform-apply.yml`'s
+  `apply` job, which only runs under the `production` environment gate.
+
+### One-time AWS setup
+
+1. Run `bootstrap/` by hand — see [`bootstrap/README.md`](bootstrap/README.md)
+   for the full chicken-and-egg procedure (it creates its own bucket, then
+   migrates its own state into it).
+2. Note the outputs: `state_bucket`, `lock_table`, `plan_role_arn`,
+   `apply_role_arn`.
+3. **Settings → Secrets and variables → Actions → Variables**, add:
+   - `AWS_REGION`
+   - `TF_STATE_BUCKET` — `state_bucket` output
+   - `TF_STATE_DYNAMODB_TABLE` — `lock_table` output
+   - `TF_AWS_PLAN_ROLE_ARN` — `plan_role_arn` output
+   - `TF_AWS_APPLY_ROLE_ARN` — `apply_role_arn` output
+
+No AWS secrets are needed — auth is OIDC role assumption, not static keys.
 
 ## CI/CD
 
@@ -76,7 +120,8 @@ Three workflows under `.github/workflows/`, plus Dependabot:
 - **`terraform-pr.yml`** — runs on every pull request that touches `*.tf`
   files: `fmt -check`, `validate`, TFLint, a Trivy config scan, then a
   read-only `terraform plan` posted/updated as a sticky PR comment and
-  uploaded as a `tfplan` build artifact. Never writes to the state cache.
+  uploaded as a `tfplan` build artifact. Assumes the read-only AWS role, so
+  it can never write state.
 - **`terraform-apply.yml`** — runs on push to `main` and via manual
   `workflow_dispatch`.
   - `resolve-pr` checks whether the push is a merged PR; if so, `plan`
@@ -114,6 +159,9 @@ In the repo's **Settings**:
      found` if this happens) — base64 sidesteps that entirely.
    - Variable `TF_GITHUB_APP_ID` — the App ID.
    - Variable `TF_GITHUB_APP_INSTALLATION_ID` — the installation ID.
+   - `AWS_REGION`, `TF_STATE_BUCKET`, `TF_STATE_DYNAMODB_TABLE`,
+     `TF_AWS_PLAN_ROLE_ARN`, `TF_AWS_APPLY_ROLE_ARN` — see
+     [One-time AWS setup](#one-time-aws-setup).
 3. **Settings → Branches** → add a protection rule for `main` requiring
    the `Plan` (from `terraform-pr.yml`) and `Lint PR title` status checks,
    and "Require branches to be up to date before merging" (see
@@ -124,6 +172,6 @@ In the repo's **Settings**:
    "Default commit message for squash merges" to **"Pull request title"**
    ([ADR-0008](docs/adr/0008-squash-merge-only.md)).
 
-No other setup is needed — the state cache seeds itself on the first
-successful apply (cache miss → empty state → normal `terraform apply`
-creates everything and saves the cache for next time).
+Once `bootstrap/` has run and the variables above are set, no further setup
+is needed — the first `terraform apply` against the new backend starts from
+an empty state and creates everything.
