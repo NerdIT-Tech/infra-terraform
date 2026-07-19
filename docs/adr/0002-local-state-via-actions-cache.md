@@ -1,6 +1,6 @@
 # ADR-0002: Persist Terraform state via the GitHub Actions cache, not a remote backend
 
-**Status:** Accepted
+**Status:** Superseded by [ADR-0010](0010-s3-state-backend.md)
 **Date:** 2026-07-19 (retroactively documented; predates this ADR log)
 
 ## Context

@@ -9,8 +9,10 @@ on:
       - ".github/workflows/terraform-apply.yml"
   workflow_dispatch: {}
 
-# Shared with terraform-pr.yml so a PR plan never reads the state cache
-# while this workflow is mid-write.
+# Shared with terraform-pr.yml. State locking is now handled natively by
+# the S3 backend + DynamoDB (ADR-0010), so this is no longer the only thing
+# preventing corruption -- kept anyway so a PR plan and an apply don't pile
+# up waiting on each other's lock.
 concurrency:
   group: terraform-state
   cancel-in-progress: false
@@ -56,6 +58,7 @@ jobs:
     permissions:
       contents: read
       actions: read
+      id-token: write
     env:
       GITHUB_APP_ID: ${{ vars.TF_GITHUB_APP_ID }}
       GITHUB_APP_INSTALLATION_ID: ${{ vars.TF_GITHUB_APP_INSTALLATION_ID }}
@@ -68,18 +71,22 @@ jobs:
         with:
           terraform_version: ${{ env.TF_VERSION }}
 
-      # Cache miss on the very first run is expected: terraform starts
-      # from an empty state and the first apply seeds the cache.
-      - name: Restore state cache
-        uses: actions/cache/restore@v6
+      # Read-only role: this job only reads state (to fmt/refresh a fresh
+      # plan on the fallback path) and never writes it -- only the apply
+      # job below gets write access (ADR-0010).
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
         with:
-          path: terraform.tfstate
-          key: terraform-state-v1
-          restore-keys: |
-            terraform-state-
+          role-to-assume: ${{ vars.TF_AWS_PLAN_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
 
       - name: terraform init
-        run: terraform init
+        run: |
+          terraform init \
+            -backend-config="bucket=${{ vars.TF_STATE_BUCKET }}" \
+            -backend-config="key=terraform.tfstate" \
+            -backend-config="region=${{ vars.AWS_REGION }}" \
+            -backend-config="dynamodb_table=${{ vars.TF_STATE_DYNAMODB_TABLE }}"
 
       # Reuse path: this push is a merge of a PR whose terraform-pr.yml run
       # already produced a reviewed tfplan. Download it instead of
@@ -123,14 +130,6 @@ jobs:
           path: tfplan
           retention-days: 5
 
-      - name: Upload pre-apply state artifact
-        uses: actions/upload-artifact@v7
-        with:
-          name: terraform-state-pre-apply
-          path: terraform.tfstate
-          retention-days: 90
-          if-no-files-found: ignore
-
   apply:
     name: Apply
     needs: plan
@@ -139,6 +138,7 @@ jobs:
     permissions:
       contents: read
       actions: write
+      id-token: write
     env:
       GITHUB_APP_ID: ${{ vars.TF_GITHUB_APP_ID }}
       GITHUB_APP_INSTALLATION_ID: ${{ vars.TF_GITHUB_APP_INSTALLATION_ID }}
@@ -155,46 +155,24 @@ jobs:
         with:
           name: tfplan
 
-      - name: Download pre-apply state artifact
-        uses: actions/download-artifact@v8
+      # Read-write role: only this job ever gets S3 write access, and only
+      # on main under the `production` environment gate (ADR-0010).
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
         with:
-          name: terraform-state-pre-apply
-        continue-on-error: true
+          role-to-assume: ${{ vars.TF_AWS_APPLY_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
 
       - name: terraform init
-        run: terraform init
+        run: |
+          terraform init \
+            -backend-config="bucket=${{ vars.TF_STATE_BUCKET }}" \
+            -backend-config="key=terraform.tfstate" \
+            -backend-config="region=${{ vars.AWS_REGION }}" \
+            -backend-config="dynamodb_table=${{ vars.TF_STATE_DYNAMODB_TABLE }}"
 
       - name: terraform apply
         run: terraform apply -input=false -auto-approve tfplan
-
-      # actions/cache never overwrites an existing key, so the previous
-      # entry has to be deleted before the post-apply state can be saved
-      # under the same fixed key. There is a brief window with no cache
-      # entry between these two steps.
-      - name: Delete stale state cache entry
-        if: always()
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          gh cache delete terraform-state-v1 --repo "${{ github.repository }}" || true
-
-      - name: Save state cache
-        if: always()
-        uses: actions/cache/save@v6
-        with:
-          path: terraform.tfstate
-          key: terraform-state-v1
-
-      # Durable backup independent of the cache, kept regardless of apply
-      # outcome since terraform writes state incrementally as it applies.
-      - name: Upload post-apply state artifact
-        if: always()
-        uses: actions/upload-artifact@v7
-        with:
-          name: terraform-state-post-apply
-          path: terraform.tfstate
-          retention-days: 90
-          if-no-files-found: ignore
 
   # The PR's sticky plan comment (from terraform-pr.yml) has now been
   # applied and is no longer useful — remove it rather than leave stale

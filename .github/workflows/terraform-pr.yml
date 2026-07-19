@@ -8,8 +8,10 @@ on:
       - ".tflint.hcl"
       - ".github/workflows/terraform-pr.yml"
 
-# Shared with terraform-apply.yml so a PR plan never reads the state cache
-# while an apply is mid-write.
+# Shared with terraform-apply.yml. State locking is now handled natively by
+# the S3 backend + DynamoDB (ADR-0010), so this is no longer the only thing
+# preventing corruption -- kept anyway so a PR plan and an apply don't pile
+# up waiting on each other's lock.
 concurrency:
   group: terraform-state
   cancel-in-progress: false
@@ -67,6 +69,7 @@ jobs:
     permissions:
       contents: read
       pull-requests: write
+      id-token: write
     env:
       GITHUB_APP_ID: ${{ vars.TF_GITHUB_APP_ID }}
       GITHUB_APP_INSTALLATION_ID: ${{ vars.TF_GITHUB_APP_INSTALLATION_ID }}
@@ -78,18 +81,22 @@ jobs:
         with:
           terraform_version: ${{ env.TF_VERSION }}
 
-      # Read-only: never saved back. If no cache exists yet, this is a
-      # no-op and terraform starts from an empty state.
-      - name: Restore state cache
-        uses: actions/cache/restore@v6
+      # Read-only role (bootstrap/main.tf's `plan` role): can read state and
+      # take/release the lock, but has no S3 write permission at all -- a PR
+      # plan can't corrupt state no matter what it plans (ADR-0010).
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
         with:
-          path: terraform.tfstate
-          key: terraform-state-v1
-          restore-keys: |
-            terraform-state-
+          role-to-assume: ${{ vars.TF_AWS_PLAN_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
 
       - name: terraform init
-        run: terraform init
+        run: |
+          terraform init \
+            -backend-config="bucket=${{ vars.TF_STATE_BUCKET }}" \
+            -backend-config="key=terraform.tfstate" \
+            -backend-config="region=${{ vars.AWS_REGION }}" \
+            -backend-config="dynamodb_table=${{ vars.TF_STATE_DYNAMODB_TABLE }}"
 
       - name: terraform plan
         id: plan
