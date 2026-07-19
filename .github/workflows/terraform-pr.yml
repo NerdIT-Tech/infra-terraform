@@ -63,6 +63,7 @@ jobs:
   plan:
     name: Plan
     needs: validate
+    environment: production
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -93,7 +94,9 @@ jobs:
 
       - name: terraform plan
         id: plan
-        run: terraform plan -no-color -input=false -out=tfplan
+        env:
+          TF_LOG: DEBUG
+        run: terraform plan -no-color -input=false -parallelism=1 -out=tfplan
         continue-on-error: true
 
       # Saved so a merge of this PR can apply exactly what was reviewed
