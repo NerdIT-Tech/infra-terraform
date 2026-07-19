@@ -66,14 +66,15 @@ jobs:
     env:
       GITHUB_APP_ID: ${{ vars.TF_GITHUB_APP_ID }}
       GITHUB_APP_INSTALLATION_ID: ${{ vars.TF_GITHUB_APP_INSTALLATION_ID }}
-      GITHUB_APP_PEM_FILE: ${{ runner.temp }}/app.pem
     steps:
       - uses: actions/checkout@v4
 
       - name: Write GitHub App private key
         run: |
           umask 077
-          printf '%s' "${{ secrets.TF_GITHUB_APP_PEM }}" > "${GITHUB_APP_PEM_FILE}"
+          PEM_PATH="${RUNNER_TEMP}/app.pem"
+          printf '%s' "${{ secrets.TF_GITHUB_APP_PEM }}" > "$PEM_PATH"
+          echo "GITHUB_APP_PEM_FILE=$PEM_PATH" >> "$GITHUB_ENV"
 
       - uses: hashicorp/setup-terraform@v3
         with:
