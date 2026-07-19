@@ -3,11 +3,17 @@
 Terraform for `NerdIT-Tech`'s GitHub-managed assets — repositories today,
 teams/permissions/etc. as they're added later.
 
+> **Why things are built this way:** this README covers *what* runs and
+> *how* to set it up. For the reasoning behind a choice — what was
+> considered and rejected, and what it obligates future changes to respect
+> — see [`docs/adr/`](docs/adr/README.md).
+
 ## Structure
 
 - `modules/github-repository/` — reusable module wrapping `github_repository`
   and (optionally) branch protection on its default branch. Every managed
-  repo is one module call, not a copy-pasted resource block.
+  repo is one module call, not a copy-pasted resource block
+  ([ADR-0009](docs/adr/0009-one-module-per-repo.md)).
 - `repositories.tf` — one `module` block per repository this org manages.
 - `providers.tf`, `versions.tf`, `variables.tf`, `outputs.tf` — root wiring.
 
@@ -21,8 +27,7 @@ a new module name and `name`, and adjust the other arguments. See
 ## Authentication
 
 Terraform authenticates to GitHub as a **GitHub App**, not a personal access
-token — this scopes access to an installation rather than a person's account
-and isn't tied to anyone leaving the org.
+token ([ADR-0001](docs/adr/0001-github-app-auth.md)).
 
 ### One-time setup
 
@@ -59,26 +64,41 @@ terraform plan
 ## State
 
 State is **local** (`terraform.tfstate`, gitignored) — there's no `backend`
-block in `versions.tf`. For CI this is made to work by persisting
-`terraform.tfstate` in the GitHub Actions cache between runs (see CI/CD
-below) rather than migrating to a remote backend. That's a deliberate
-trade-off, not the ideal setup — see the caveat below.
+block in `versions.tf`. For CI, `terraform.tfstate` is persisted in the
+GitHub Actions cache between runs instead
+([ADR-0002](docs/adr/0002-local-state-via-actions-cache.md), including the
+trade-offs that come with it).
 
 ## CI/CD
 
-Two workflows under `.github/workflows/`:
+Three workflows under `.github/workflows/`, plus Dependabot:
 
 - **`terraform-pr.yml`** — runs on every pull request that touches `*.tf`
-  files. `fmt -check`, `validate`, TFLint, and a Trivy config scan, then a
-  read-only `terraform plan` whose output is posted/updated as a PR comment.
-  Never writes to the state cache.
-- **`terraform-apply.yml`** — runs on push to `main` (and via manual
-  `workflow_dispatch`). A `plan` job produces `tfplan` and uploads it as a
-  build artifact along with the pre-apply state. An `apply` job then runs
-  under the `production` GitHub Environment, which pauses for a required
-  reviewer's approval (the plan is visible in the job summary) before it
-  downloads that exact `tfplan` artifact and applies it — never a
-  freshly-recomputed plan. Nothing auto-applies unattended.
+  files: `fmt -check`, `validate`, TFLint, a Trivy config scan, then a
+  read-only `terraform plan` posted/updated as a sticky PR comment and
+  uploaded as a `tfplan` build artifact. Never writes to the state cache.
+- **`terraform-apply.yml`** — runs on push to `main` and via manual
+  `workflow_dispatch`.
+  - `resolve-pr` checks whether the push is a merged PR; if so, `plan`
+    reuses that PR's already-reviewed `tfplan` artifact instead of
+    re-planning ([ADR-0004](docs/adr/0004-reuse-pr-plan-on-merge.md)).
+    Otherwise it plans fresh.
+  - `apply` runs under the `production` GitHub Environment (required
+    reviewer approval) and applies the exact `tfplan` artifact, never a
+    plan recomputed at apply time
+    ([ADR-0003](docs/adr/0003-plan-gated-apply-pipeline.md)).
+  - `cleanup-pr-comment` deletes the sticky plan comment from the PR once
+    a merge-triggered apply succeeds
+    ([ADR-0005](docs/adr/0005-sticky-pr-plan-comment.md)).
+- **`conventional-commits.yml`** — lints the PR title (only) against
+  [Conventional Commits](https://www.conventionalcommits.org/)
+  ([ADR-0006](docs/adr/0006-conventional-commit-title-only.md)).
+- **Dependabot** (`.github/dependabot.yml`) — weekly updates for Terraform,
+  GitHub Actions, and devcontainer versions
+  ([ADR-0007](docs/adr/0007-dependabot-scope.md)).
+
+This repo merges PRs via **squash-merge only**
+([ADR-0008](docs/adr/0008-squash-merge-only.md)).
 
 ### One-time repo setup for CI
 
@@ -94,24 +114,16 @@ In the repo's **Settings**:
      found` if this happens) — base64 sidesteps that entirely.
    - Variable `TF_GITHUB_APP_ID` — the App ID.
    - Variable `TF_GITHUB_APP_INSTALLATION_ID` — the installation ID.
+3. **Settings → Branches** → add a protection rule for `main` requiring
+   the `Plan` (from `terraform-pr.yml`) and `Lint PR title` status checks,
+   and "Require branches to be up to date before merging" (see
+   [ADR-0004](docs/adr/0004-reuse-pr-plan-on-merge.md) for why the latter
+   matters).
+4. **Settings → General → Pull Requests** → uncheck "Allow merge commits"
+   and "Allow rebase merging", keep "Allow squash merging" checked, and set
+   "Default commit message for squash merges" to **"Pull request title"**
+   ([ADR-0008](docs/adr/0008-squash-merge-only.md)).
 
 No other setup is needed — the state cache seeds itself on the first
 successful apply (cache miss → empty state → normal `terraform apply`
 creates everything and saves the cache for next time).
-
-### Caveat: Actions cache as a state backend
-
-Using `actions/cache` to persist `terraform.tfstate` avoids standing up a
-remote backend, but it is **not** a real Terraform backend: no native
-locking (the shared `concurrency: group: terraform-state` on both workflows
-is the only thing preventing two runs from touching state at once), no
-strong durability guarantee (caches can be evicted, e.g. after 7 days of
-disuse), and cache keys can't be overwritten in place (the apply workflow
-works around this by deleting the old entry before saving the new one,
-which leaves a brief window with no cache entry). The apply workflow
-mitigates the durability risk by also uploading `terraform.tfstate` as a
-90-day build artifact before and after every apply, so a lost cache can be
-recovered manually from the most recent artifact. If this repo starts
-managing more than a handful of resources, migrating to a real backend
-(HCP Terraform's free tier is the lowest-effort option, since it also
-handles secret storage for the App credentials) is worth revisiting.
