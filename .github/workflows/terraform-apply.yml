@@ -1,0 +1,167 @@
+name: Terraform Apply
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "**.tf"
+      - ".terraform.lock.hcl"
+      - ".github/workflows/terraform-apply.yml"
+  workflow_dispatch: {}
+
+# Shared with terraform-pr.yml so a PR plan never reads the state cache
+# while this workflow is mid-write.
+concurrency:
+  group: terraform-state
+  cancel-in-progress: false
+
+env:
+  TF_VERSION: "1.9.8"
+  TF_IN_AUTOMATION: "true"
+
+jobs:
+  plan:
+    name: Plan
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    env:
+      GITHUB_APP_ID: ${{ vars.TF_GITHUB_APP_ID }}
+      GITHUB_APP_INSTALLATION_ID: ${{ vars.TF_GITHUB_APP_INSTALLATION_ID }}
+      GITHUB_APP_PEM_FILE: ${{ runner.temp }}/app.pem
+    outputs:
+      plan-outcome: ${{ steps.plan.outcome }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Write GitHub App private key
+        run: |
+          umask 077
+          printf '%s' "${{ secrets.TF_GITHUB_APP_PEM }}" > "${GITHUB_APP_PEM_FILE}"
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      # Cache miss on the very first run is expected: terraform starts
+      # from an empty state and the first apply seeds the cache.
+      - name: Restore state cache
+        uses: actions/cache/restore@v4
+        with:
+          path: terraform.tfstate
+          key: terraform-state-v1
+          restore-keys: |
+            terraform-state-
+
+      - name: terraform init
+        run: terraform init
+
+      - name: terraform plan
+        id: plan
+        run: terraform plan -no-color -input=false -out=tfplan
+
+      - name: Remove private key
+        if: always()
+        run: rm -f "${GITHUB_APP_PEM_FILE}"
+
+      - name: Write plan to job summary
+        run: |
+          {
+            echo "### Terraform Plan";
+            echo '```';
+            terraform show -no-color tfplan;
+            echo '```';
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      # Handed to the apply job as artifacts rather than re-reading the
+      # cache there, so apply always operates on exactly what was planned
+      # and reviewed here — not on whatever the cache happens to hold by
+      # the time a reviewer approves.
+      - name: Upload plan artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: tfplan
+          path: tfplan
+          retention-days: 5
+
+      - name: Upload pre-apply state artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: terraform-state-pre-apply
+          path: terraform.tfstate
+          retention-days: 90
+          if-no-files-found: ignore
+
+  apply:
+    name: Apply
+    needs: plan
+    runs-on: ubuntu-latest
+    environment: production
+    permissions:
+      contents: read
+      actions: write
+    env:
+      GITHUB_APP_ID: ${{ vars.TF_GITHUB_APP_ID }}
+      GITHUB_APP_INSTALLATION_ID: ${{ vars.TF_GITHUB_APP_INSTALLATION_ID }}
+      GITHUB_APP_PEM_FILE: ${{ runner.temp }}/app.pem
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Write GitHub App private key
+        run: |
+          umask 077
+          printf '%s' "${{ secrets.TF_GITHUB_APP_PEM }}" > "${GITHUB_APP_PEM_FILE}"
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Download plan artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: tfplan
+
+      - name: Download pre-apply state artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: terraform-state-pre-apply
+        continue-on-error: true
+
+      - name: terraform init
+        run: terraform init
+
+      - name: terraform apply
+        run: terraform apply -input=false -auto-approve tfplan
+
+      - name: Remove private key
+        if: always()
+        run: rm -f "${GITHUB_APP_PEM_FILE}"
+
+      # actions/cache never overwrites an existing key, so the previous
+      # entry has to be deleted before the post-apply state can be saved
+      # under the same fixed key. There is a brief window with no cache
+      # entry between these two steps.
+      - name: Delete stale state cache entry
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh cache delete terraform-state-v1 --repo "${{ github.repository }}" || true
+
+      - name: Save state cache
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: terraform.tfstate
+          key: terraform-state-v1
+
+      # Durable backup independent of the cache, kept regardless of apply
+      # outcome since terraform writes state incrementally as it applies.
+      - name: Upload post-apply state artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: terraform-state-post-apply
+          path: terraform.tfstate
+          retention-days: 90
+          if-no-files-found: ignore
