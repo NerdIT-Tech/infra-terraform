@@ -23,7 +23,7 @@ jobs:
     name: Format, validate, lint, scan
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: hashicorp/setup-terraform@v3
         with:
@@ -38,7 +38,7 @@ jobs:
       - name: terraform validate
         run: terraform validate
 
-      - uses: terraform-linters/setup-tflint@v4
+      - uses: terraform-linters/setup-tflint@v6
         with:
           tflint_version: latest
 
@@ -49,12 +49,16 @@ jobs:
         run: tflint --recursive
 
       - name: Trivy IaC scan
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           scan-type: config
           scan-ref: .
           exit-code: "1"
           severity: "CRITICAL,HIGH"
+          # v0.70.0 (the action's own default) doesn't recognize that
+          # github_repository_vulnerability_alerts satisfies GIT-0003 for
+          # a linked github_repository -- only a later Trivy release does.
+          version: v0.72.0
 
   plan:
     name: Plan
@@ -66,14 +70,15 @@ jobs:
     env:
       GITHUB_APP_ID: ${{ vars.TF_GITHUB_APP_ID }}
       GITHUB_APP_INSTALLATION_ID: ${{ vars.TF_GITHUB_APP_INSTALLATION_ID }}
-      GITHUB_APP_PEM_FILE: ${{ runner.temp }}/app.pem
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Write GitHub App private key
         run: |
           umask 077
-          printf '%s' "${{ secrets.TF_GITHUB_APP_PEM }}" > "${GITHUB_APP_PEM_FILE}"
+          PEM_PATH="${RUNNER_TEMP}/app.pem"
+          printf '%s' "${{ secrets.TF_GITHUB_APP_PEM }}" > "$PEM_PATH"
+          echo "GITHUB_APP_PEM_FILE=$PEM_PATH" >> "$GITHUB_ENV"
 
       - uses: hashicorp/setup-terraform@v3
         with:
@@ -82,7 +87,7 @@ jobs:
       # Read-only: never saved back. If no cache exists yet, this is a
       # no-op and terraform starts from an empty state.
       - name: Restore state cache
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v6
         with:
           path: terraform.tfstate
           key: terraform-state-v1
@@ -102,7 +107,7 @@ jobs:
         run: rm -f "${GITHUB_APP_PEM_FILE}"
 
       - name: Comment plan on PR
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         env:
           PLAN_OUTPUT: ${{ steps.plan.outputs.stdout }}
           PLAN_OUTCOME: ${{ steps.plan.outcome }}

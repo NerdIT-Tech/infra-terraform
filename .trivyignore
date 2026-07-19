@@ -1,0 +1,6 @@
+# GIT-0001: Trivy flags any GitHub repository with visibility = "public" as
+# a misconfiguration. This tool exists to manage public open-source repos
+# (e.g. servicenow-sdk-for-go, see README.md) as well as private ones, so
+# public visibility is an intentional per-repo choice, not an oversight.
+# https://avd.aquasec.com/misconfig/git-0001
+GIT-0001

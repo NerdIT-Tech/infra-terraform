@@ -34,7 +34,8 @@ resource "github_branch_protection" "default" {
   repository_id = github_repository.this.node_id
   pattern       = var.default_branch
 
-  enforce_admins = var.enforce_admins
+  enforce_admins         = var.enforce_admins
+  require_signed_commits = var.require_signed_commits
 
   required_pull_request_reviews {
     required_approving_review_count = var.required_approving_review_count

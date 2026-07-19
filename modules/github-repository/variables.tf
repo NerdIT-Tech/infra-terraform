@@ -126,3 +126,9 @@ variable "enforce_admins" {
   type        = bool
   default     = false
 }
+
+variable "require_signed_commits" {
+  description = "Require commits pushed to the default branch to be signed."
+  type        = bool
+  default     = true
+}
