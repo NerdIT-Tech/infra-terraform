@@ -70,6 +70,7 @@ jobs:
     env:
       GITHUB_APP_ID: ${{ vars.TF_GITHUB_APP_ID }}
       GITHUB_APP_INSTALLATION_ID: ${{ vars.TF_GITHUB_APP_INSTALLATION_ID }}
+      GITHUB_APP_PEM_FILE: ${{ secrets.TF_GITHUB_APP_PEM }}
     steps:
       - uses: actions/checkout@v7
 
