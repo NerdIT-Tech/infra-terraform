@@ -2,7 +2,7 @@
 # hand (see README.md) -- never applied by CI. Everything here is deliberately
 # scoped to exactly what the root config's CI roles need; the root config
 # never gets credentials broad enough to touch this bootstrap config's own
-# state or anything outside the one bucket/table it owns.
+# state or anything outside the one bucket it owns.
 
 resource "aws_s3_bucket" "terraform_state" {
   bucket = var.state_bucket_name
@@ -55,17 +55,6 @@ resource "aws_s3_bucket_policy" "terraform_state" {
   policy = data.aws_iam_policy_document.terraform_state_bucket_policy.json
 }
 
-resource "aws_dynamodb_table" "terraform_lock" {
-  name         = var.lock_table_name
-  billing_mode = "PAY_PER_REQUEST"
-  hash_key     = "LockID"
-
-  attribute {
-    name = "LockID"
-    type = "S"
-  }
-}
-
 # --- GitHub Actions OIDC: no long-lived AWS access keys stored as repo
 # secrets, matching ADR-0001's stance on GitHub App auth over a PAT.
 
@@ -87,6 +76,11 @@ locals {
   github_oidc_provider_arn = var.create_github_oidc_provider ? aws_iam_openid_connect_provider.github_actions[0].arn : data.aws_iam_openid_connect_provider.github_actions[0].arn
 
   state_object_arn = "${aws_s3_bucket.terraform_state.arn}/${var.state_key}"
+  # Native S3 locking (`use_lockfile`, Terraform >= 1.10) writes a companion
+  # object at this path via conditional PutObject/DeleteObject -- a separate
+  # object from the state itself, so the read-only plan role can take/release
+  # the lock without ever gaining write access to the actual state data.
+  state_lockfile_arn = "${local.state_object_arn}.tflock"
 }
 
 # --- Plan role: read-only. Assumed by terraform-pr.yml (any PR) and by
@@ -142,10 +136,10 @@ data "aws_iam_policy_document" "plan_state_access" {
     resources = [local.state_object_arn]
   }
   statement {
-    sid       = "StateLock"
+    sid       = "StateLockFile"
     effect    = "Allow"
-    actions   = ["dynamodb:GetItem", "dynamodb:PutItem", "dynamodb:DeleteItem"]
-    resources = [aws_dynamodb_table.terraform_lock.arn]
+    actions   = ["s3:GetObject", "s3:PutObject", "s3:DeleteObject"]
+    resources = [local.state_lockfile_arn]
   }
 }
 
@@ -204,10 +198,10 @@ data "aws_iam_policy_document" "apply_state_access" {
     resources = [local.state_object_arn]
   }
   statement {
-    sid       = "StateLock"
+    sid       = "StateLockFile"
     effect    = "Allow"
-    actions   = ["dynamodb:GetItem", "dynamodb:PutItem", "dynamodb:DeleteItem"]
-    resources = [aws_dynamodb_table.terraform_lock.arn]
+    actions   = ["s3:GetObject", "s3:PutObject", "s3:DeleteObject"]
+    resources = [local.state_lockfile_arn]
   }
 }
 

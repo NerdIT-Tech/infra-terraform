@@ -17,9 +17,8 @@ teams/permissions/etc. as they're added later.
 - `repositories.tf` — one `module` block per repository this org manages.
 - `providers.tf`, `versions.tf`, `variables.tf`, `outputs.tf` — root wiring.
 - `bootstrap/` — a separate, rarely-touched Terraform config that creates
-  this repo's own state backend (S3 bucket, DynamoDB lock table, CI's AWS
-  IAM roles). Applied by hand, never by CI — see
-  [`bootstrap/README.md`](bootstrap/README.md) and
+  this repo's own state backend (S3 bucket, CI's AWS IAM roles). Applied by
+  hand, never by CI — see [`bootstrap/README.md`](bootstrap/README.md) and
   [ADR-0010](docs/adr/0010-s3-state-backend.md).
 
 ### Adding a repository
@@ -60,7 +59,9 @@ never written into `.tf`, `.tfvars`, or state:
 ```sh
 export GITHUB_APP_ID="..."
 export GITHUB_APP_INSTALLATION_ID="..."
-export GITHUB_APP_PEM_FILE="/path/to/private-key.pem"
+# Contents, not a path -- and with real newlines replaced by literal `\n`
+# (matches how the provider expects the CI secret's decoded content too).
+export GITHUB_APP_PEM_FILE="$(awk 'BEGIN{ORS="\\n"} {print}' /path/to/private-key.pem)"
 
 terraform init
 terraform plan
@@ -68,16 +69,16 @@ terraform plan
 
 ## State
 
-State lives in an S3 bucket, locked via a DynamoDB table
-([ADR-0010](docs/adr/0010-s3-state-backend.md), which supersedes the
-earlier Actions-cache approach in
-[ADR-0002](docs/adr/0002-local-state-via-actions-cache.md)). The bucket,
-lock table, and CI's AWS IAM roles are created by
-[`bootstrap/`](bootstrap/README.md) — a separate config, applied by hand,
-never by CI.
+State lives in an S3 bucket, locked natively via S3's conditional-write
+locking (`use_lockfile`, Terraform >= 1.10 — see `required_version` in
+`versions.tf`) ([ADR-0010](docs/adr/0010-s3-state-backend.md), which
+supersedes the earlier Actions-cache approach in
+[ADR-0002](docs/adr/0002-local-state-via-actions-cache.md)). The bucket
+and CI's AWS IAM roles are created by [`bootstrap/`](bootstrap/README.md)
+— a separate config, applied by hand, never by CI.
 
-`versions.tf`'s `backend "s3" {}` block is empty on purpose: bucket/region/
-lock-table are account-specific values supplied via `-backend-config` at
+`versions.tf`'s `backend "s3" {}` block is empty on purpose: bucket/region
+are account-specific values supplied via `-backend-config` at
 `terraform init` time, not hardcoded. Locally:
 
 ```sh
@@ -85,7 +86,7 @@ terraform init \
   -backend-config="bucket=<TF_STATE_BUCKET>" \
   -backend-config="key=terraform.tfstate" \
   -backend-config="region=<AWS_REGION>" \
-  -backend-config="dynamodb_table=<TF_STATE_DYNAMODB_TABLE>"
+  -backend-config="use_lockfile=true"
 ```
 
 CI authenticates to AWS via GitHub Actions OIDC (`aws-actions/configure-aws-credentials`),
@@ -102,12 +103,10 @@ assuming one of two IAM roles created by `bootstrap/`:
 1. Run `bootstrap/` by hand — see [`bootstrap/README.md`](bootstrap/README.md)
    for the full chicken-and-egg procedure (it creates its own bucket, then
    migrates its own state into it).
-2. Note the outputs: `state_bucket`, `lock_table`, `plan_role_arn`,
-   `apply_role_arn`.
+2. Note the outputs: `state_bucket`, `plan_role_arn`, `apply_role_arn`.
 3. **Settings → Secrets and variables → Actions → Variables**, add:
    - `AWS_REGION`
    - `TF_STATE_BUCKET` — `state_bucket` output
-   - `TF_STATE_DYNAMODB_TABLE` — `lock_table` output
    - `TF_AWS_PLAN_ROLE_ARN` — `plan_role_arn` output
    - `TF_AWS_APPLY_ROLE_ARN` — `apply_role_arn` output
 
@@ -159,8 +158,8 @@ In the repo's **Settings**:
      found` if this happens) — base64 sidesteps that entirely.
    - Variable `TF_GITHUB_APP_ID` — the App ID.
    - Variable `TF_GITHUB_APP_INSTALLATION_ID` — the installation ID.
-   - `AWS_REGION`, `TF_STATE_BUCKET`, `TF_STATE_DYNAMODB_TABLE`,
-     `TF_AWS_PLAN_ROLE_ARN`, `TF_AWS_APPLY_ROLE_ARN` — see
+   - `AWS_REGION`, `TF_STATE_BUCKET`, `TF_AWS_PLAN_ROLE_ARN`,
+     `TF_AWS_APPLY_ROLE_ARN` — see
      [One-time AWS setup](#one-time-aws-setup).
 3. **Settings → Branches** → add a protection rule for `main` requiring
    the `Plan` (from `terraform-pr.yml`) and `Lint PR title` status checks,

@@ -9,15 +9,15 @@ on:
       - ".github/workflows/terraform-pr.yml"
 
 # Shared with terraform-apply.yml. State locking is now handled natively by
-# the S3 backend + DynamoDB (ADR-0010), so this is no longer the only thing
-# preventing corruption -- kept anyway so a PR plan and an apply don't pile
-# up waiting on each other's lock.
+# the S3 backend's `use_lockfile` conditional writes (ADR-0010), so this is
+# no longer the only thing preventing corruption -- kept anyway so a PR plan
+# and an apply don't pile up waiting on each other's lock.
 concurrency:
   group: terraform-state
   cancel-in-progress: false
 
 env:
-  TF_VERSION: "1.9.8"
+  TF_VERSION: "1.10.5"
   TF_IN_AUTOMATION: "true"
 
 jobs:
@@ -97,7 +97,7 @@ jobs:
             -backend-config="bucket=${{ vars.TF_STATE_BUCKET }}" \
             -backend-config="key=terraform.tfstate" \
             -backend-config="region=${{ vars.AWS_REGION }}" \
-            -backend-config="dynamodb_table=${{ vars.TF_STATE_DYNAMODB_TABLE }}"
+            -backend-config="use_lockfile=true"
 
       - name: terraform plan
         id: plan

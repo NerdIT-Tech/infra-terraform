@@ -3,11 +3,6 @@ output "state_bucket" {
   value       = aws_s3_bucket.terraform_state.id
 }
 
-output "lock_table" {
-  description = "DynamoDB table used for state locking. Set as TF_STATE_DYNAMODB_TABLE in the root repo's Actions variables."
-  value       = aws_dynamodb_table.terraform_lock.id
-}
-
 output "plan_role_arn" {
   description = "Read-only role for terraform-pr.yml / terraform-apply.yml's plan job. Set as TF_AWS_PLAN_ROLE_ARN."
   value       = aws_iam_role.plan.arn

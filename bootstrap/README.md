@@ -1,9 +1,9 @@
 # bootstrap
 
 Creates the shared AWS backend the root config's state lives in: an S3
-bucket, a DynamoDB lock table, and the GitHub Actions OIDC trust (two IAM
-roles -- read-only `plan`, read-write `apply`) the root config's CI uses to
-reach them. See [ADR-0010](../docs/adr/0010-s3-state-backend.md) for why.
+bucket (with native state locking), and the GitHub Actions OIDC trust (two
+IAM roles -- read-only `plan`, read-write `apply`) the root config's CI uses
+to reach them. See [ADR-0010](../docs/adr/0010-s3-state-backend.md) for why.
 
 This is a one-time (or rarely-touched) setup, applied by hand with your own
 AWS credentials -- **never** by CI. It is not one of this org's *managed*
@@ -17,20 +17,20 @@ the first apply runs on local state, and only afterwards moves itself in:
 1. Copy `terraform.tfvars.example` to `terraform.tfvars` and fill in
    `aws_region` and a globally-unique `state_bucket_name`.
 2. Authenticate to AWS locally (whatever your normal method is -- SSO
-   profile, etc.) with permissions to create S3 buckets, DynamoDB tables,
-   IAM roles/policies, and (if `create_github_oidc_provider = true`, the
-   default) an IAM OIDC provider.
+   profile, etc.) with permissions to create S3 buckets, IAM roles/policies,
+   and (if `create_github_oidc_provider = true`, the default) an IAM OIDC
+   provider.
 3. `terraform init` (local state -- no backend block exists yet).
-4. `terraform apply`. This creates the bucket, lock table, and both IAM
-   roles, and prints their ARNs/names as outputs.
+4. `terraform apply`. This creates the bucket and both IAM roles, and
+   prints their ARNs/names as outputs.
 5. Add a backend block to `versions.tf` in *this* directory:
 
    ```hcl
    backend "s3" {
-     bucket         = "<state_bucket_name from your tfvars>"
-     key            = "bootstrap/terraform.tfstate"
-     region         = "<aws_region from your tfvars>"
-     dynamodb_table = "<lock_table_name, default nerdit-tech-terraform-locks>"
+     bucket       = "<state_bucket_name from your tfvars>"
+     key          = "bootstrap/terraform.tfstate"
+     region       = "<aws_region from your tfvars>"
+     use_lockfile = true
    }
    ```
 

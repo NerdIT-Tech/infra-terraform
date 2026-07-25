@@ -8,12 +8,6 @@ variable "state_bucket_name" {
   type        = string
 }
 
-variable "lock_table_name" {
-  description = "DynamoDB table name used for Terraform state locking."
-  type        = string
-  default     = "nerdit-tech-terraform-locks"
-}
-
 variable "github_owner" {
   description = "GitHub organization the CI trust policies are scoped to. Matches the root config's github_owner variable."
   type        = string
