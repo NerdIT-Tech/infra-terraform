@@ -168,9 +168,13 @@ data "aws_iam_policy_document" "apply_trust" {
       values   = ["sts.amazonaws.com"]
     }
     condition {
-      test     = "StringLike"
+      test = "StringLike"
+      # A job that declares `environment: production` (as terraform-apply.yml's
+      # apply job must, to reach the GitHub App secrets scoped to that
+      # environment) gets an environment-based sub claim -- this REPLACES the
+      # ref-based one, it doesn't add to it. See ADR-0012.
       variable = "token.actions.githubusercontent.com:sub"
-      values   = ["repo:${var.github_owner}/${var.github_repository_name}:ref:refs/heads/main"]
+      values   = ["repo:${var.github_owner}/${var.github_repository_name}:environment:production"]
     }
   }
 }

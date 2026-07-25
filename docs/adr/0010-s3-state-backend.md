@@ -48,7 +48,11 @@ is circular.
   `production` environment per [ADR-0003](0003-plan-gated-apply-pipeline.md)).
   Both roles are scoped to exactly this bucket, exactly the root config's
   state key, and exactly this repo's OIDC subject claims — neither role can
-  touch `bootstrap/`'s own state, which lives under a different key.
+  touch `bootstrap/`'s own state, which lives under a different key. Only
+  the `apply` job declares `environment: production` — see
+  [ADR-0012](0012-plan-jobs-drop-production-environment.md) for why the
+  `plan` jobs deliberately don't, and why that matters for keeping these
+  two roles' OIDC subject claims actually distinct.
 
 ## Alternatives considered
 

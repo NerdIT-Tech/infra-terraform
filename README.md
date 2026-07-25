@@ -150,7 +150,10 @@ In the repo's **Settings**:
 
 1. **Settings → Environments** → create `production`, add required
    reviewers. This is what gates every apply.
-2. **Settings → Secrets and variables → Actions**:
+2. **Settings → Secrets and variables → Actions** (repo-level, *not* under
+   the `production` Environment from step 1 — see
+   [ADR-0012](docs/adr/0012-plan-jobs-drop-production-environment.md) for
+   why that distinction matters):
    - Secret `TF_GITHUB_APP_PEM` — the **base64** of the GitHub App private
      key file, not the raw PEM text: `base64 -w0 app-private-key.pem`.
      Pasting the raw multi-line PEM directly into the secret box is prone

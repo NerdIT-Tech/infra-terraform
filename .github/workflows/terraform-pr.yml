@@ -65,7 +65,6 @@ jobs:
   plan:
     name: Plan
     needs: validate
-    environment: production
     runs-on: ubuntu-latest
     permissions:
       contents: read
