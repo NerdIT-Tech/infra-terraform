@@ -103,8 +103,27 @@ jobs:
       # Fallback path: direct push to main or workflow_dispatch, with no
       # merged PR to source a plan from.
       - name: terraform plan (fresh)
+        id: plan
         if: env.SOURCE_PR == ''
+        # Bounds a hung plan (seen stuck 31+ min with no bound before) so it
+        # fails fast instead of sitting on the shared `terraform-state`
+        # concurrency group and blocking every other PR/apply behind it.
+        timeout-minutes: 15
         run: terraform plan -no-color -input=false -out=tfplan
+
+      # A plan step that's killed -- by manual cancellation or by the
+      # timeout above -- doesn't get to release its own S3 native lock
+      # (ADR-0010), leaving the `.tflock` object behind and blocking every
+      # later plan/apply. `always()` so this runs on that path too; a
+      # normal success/failure already released the lock as part of
+      # terraform's own exit, so this is a harmless no-op then. Only
+      # relevant on the fresh-plan path -- the reuse path never runs
+      # `terraform plan` here, so never takes the lock.
+      - name: Release state lock
+        if: always() && env.SOURCE_PR == ''
+        run: |
+          aws s3 rm "s3://${{ vars.TF_STATE_BUCKET }}/terraform.tfstate.tflock" \
+            --region "${{ vars.AWS_REGION }}" || true
 
       - name: Write plan to job summary
         run: |

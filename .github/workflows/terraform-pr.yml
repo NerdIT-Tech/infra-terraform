@@ -100,8 +100,15 @@ jobs:
 
       - name: terraform plan
         id: plan
+        timeout-minutes: 5
         run: terraform plan -no-color -input=false -out=tfplan
         continue-on-error: true
+
+      - name: Release state lock
+        if: always()
+        run: |
+          aws s3 rm "s3://${{ vars.TF_STATE_BUCKET }}/terraform.tfstate.tflock" \
+            --region "${{ vars.AWS_REGION }}" || true
 
       # Saved so a merge of this PR can apply exactly what was reviewed
       # here instead of re-planning after merge (see terraform-apply.yml).
