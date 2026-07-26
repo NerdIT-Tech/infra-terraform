@@ -1,6 +1,10 @@
 # Add one module block per repository this org manages. To add the next
 # repository, copy this block, change the module name/`name`, and adjust
 # the other arguments as needed.
+#
+# Tag repos that are infrastructure/tooling (not an app or library) with
+# `topics = ["infrastructure", ...]` -- see ADR-0014. This replaces naming
+# convention (an `infra-` prefix) as the way to identify them.
 
 module "servicenow_sdk_for_go" {
   source = "./modules/github-repository"
@@ -29,7 +33,7 @@ module "pkg_linux" {
   name        = "pkg-linux"
   description = "" # TODO: confirm/edit description
   visibility  = "public"
-  topics      = []
+  topics      = ["linux", "package-manager", "apt", "yum", "apk", "github-pages"]
   auto_init   = false
 
   has_wiki     = true
@@ -49,7 +53,7 @@ module "secret_lifecycle_orchestrator" {
   name        = "secret-lifecycle-orchestrator"
   description = "" # TODO: confirm/edit description
   visibility  = "public"
-  topics      = []
+  topics      = ["go", "golang", "secrets", "security", "automation"]
   auto_init   = false
 
   has_wiki     = true
@@ -69,7 +73,7 @@ module "infra_runners" {
   name        = "infra-runners"
   description = "" # TODO: confirm/edit description
   visibility  = "public"
-  topics      = []
+  topics      = ["infrastructure"]
   auto_init   = false
 
   has_wiki     = true
