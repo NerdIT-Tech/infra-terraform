@@ -103,6 +103,17 @@ jobs:
         run: terraform plan -no-color -input=false -out=tfplan
         continue-on-error: true
 
+      # A cancelled `terraform plan` is killed before it can release its own
+      # S3 native lock (ADR-0010), leaving the `.tflock` object behind and
+      # blocking every later plan/apply. Cancellation is the only way this
+      # step doesn't get to clean up after itself -- normal success/failure
+      # already releases the lock as part of terraform's own exit.
+      - name: Release state lock if cancelled
+        if: cancelled() && steps.plan.outcome == 'cancelled'
+        run: |
+          aws s3 rm "s3://${{ vars.TF_STATE_BUCKET }}/terraform.tfstate.tflock" \
+            --region "${{ vars.AWS_REGION }}" || true
+
       # Saved so a merge of this PR can apply exactly what was reviewed
       # here instead of re-planning after merge (see terraform-apply.yml).
       - name: Upload plan artifact
