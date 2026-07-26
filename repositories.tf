@@ -21,6 +21,21 @@ module "servicenow_sdk_for_go" {
   required_approving_review_count = 1
 }
 
+module "tplink_omada_sdk_for_go" {
+  source = "./modules/github-repository"
+
+  name        = "tplink-omada-sdk-for-go"
+  description = "Go SDK for the TP-Link Omada Controller API." # TODO: confirm/edit description
+  visibility  = "public"
+  topics      = ["tplink", "omada", "sdk", "go", "golang"]
+
+  gitignore_template = "Go"
+  license_template   = "mit" # TODO: confirm license choice
+
+  enable_branch_protection        = true
+  required_approving_review_count = 0
+}
+
 # --- Migrated repositories (pre-existing, brought under management via import) ---
 # Arguments below mirror each repo's actual current settings so the import
 # is behavior-neutral. `enable_branch_protection` is left off for all three
