@@ -75,7 +75,7 @@ jobs:
       # plan on the fallback path) and never writes it -- only the apply
       # job below gets write access (ADR-0010).
       - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@v6
         with:
           role-to-assume: ${{ vars.TF_AWS_PLAN_ROLE_ARN }}
           aws-region: ${{ vars.AWS_REGION }}
@@ -177,7 +177,7 @@ jobs:
       # Read-write role: only this job ever gets S3 write access, and only
       # on main under the `production` environment gate (ADR-0010).
       - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@v6
         with:
           role-to-assume: ${{ vars.TF_AWS_APPLY_ROLE_ARN }}
           aws-region: ${{ vars.AWS_REGION }}
