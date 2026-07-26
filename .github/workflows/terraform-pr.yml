@@ -2,11 +2,16 @@ name: Terraform PR
 
 on:
   pull_request:
+    # Must stay a superset of terraform-apply.yml's own path filter -- any
+    # PR that would trigger an apply on merge has to trigger a plan here
+    # first, or terraform-apply.yml resolves a merged PR with no reviewed
+    # tfplan artifact to reuse (ADR-0004) and fails trying to download one.
     paths:
       - "**.tf"
       - ".terraform.lock.hcl"
       - ".tflint.hcl"
       - ".github/workflows/terraform-pr.yml"
+      - ".github/workflows/terraform-apply.yml"
 
 # Shared with terraform-apply.yml. State locking is now handled natively by
 # the S3 backend's `use_lockfile` conditional writes (ADR-0010), so this is
