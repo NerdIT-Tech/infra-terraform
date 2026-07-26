@@ -100,7 +100,7 @@ jobs:
 
       - name: terraform plan
         id: plan
-        timeout-minutes: 15
+        timeout-minutes: 5
         run: terraform plan -no-color -input=false -out=tfplan
         continue-on-error: true
 
