@@ -85,7 +85,7 @@ jobs:
       # take/release the lock, but has no S3 write permission at all -- a PR
       # plan can't corrupt state no matter what it plans (ADR-0010).
       - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@v6
         with:
           role-to-assume: ${{ vars.TF_AWS_PLAN_ROLE_ARN }}
           aws-region: ${{ vars.AWS_REGION }}
