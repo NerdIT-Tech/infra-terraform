@@ -4,6 +4,16 @@
       "version": "1.4.4",
       "resolved": "ghcr.io/devcontainers/features/terraform@sha256:c6a4ed166fb749670db856c549f8858037c0af9ab3aacaf85fcb8634fadf6b05",
       "integrity": "sha256:c6a4ed166fb749670db856c549f8858037c0af9ab3aacaf85fcb8634fadf6b05"
+    },
+    "ghcr.io/roul/devcontainer-features/bitwarden-cli:1": {
+      "version": "1.0.1",
+      "resolved": "ghcr.io/roul/devcontainer-features/bitwarden-cli@sha256:1de09a6fcf3c58095a633ae3019328193c7119dbbbbaf24037b201195e0a8b25",
+      "integrity": "sha256:1de09a6fcf3c58095a633ae3019328193c7119dbbbbaf24037b201195e0a8b25"
+    },
+    "ghcr.io/stu-bell/devcontainer-features/claude-code:0": {
+      "version": "0.1.0",
+      "resolved": "ghcr.io/stu-bell/devcontainer-features/claude-code@sha256:f87b4da3f8648db9111cb25c6bd3817d096018d81f3fb596340f7ffdba14409a",
+      "integrity": "sha256:f87b4da3f8648db9111cb25c6bd3817d096018d81f3fb596340f7ffdba14409a"
     }
   }
 }
