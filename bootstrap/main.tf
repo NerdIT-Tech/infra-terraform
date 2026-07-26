@@ -103,11 +103,16 @@ data "aws_iam_policy_document" "plan_trust" {
       values   = ["sts.amazonaws.com"]
     }
     condition {
-      test     = "StringLike"
+      test = "StringLike"
+      # `@*` after each name tolerates this org's immutable subject claims
+      # (GitHub embeds the org/repo's stable numeric ID: e.g.
+      # repo:NerdIT-Tech@194043185/infra-terraform@1305370731:pull_request,
+      # not the plain repo:OWNER/REPO:... format most docs show). See
+      # ADR-0013.
       variable = "token.actions.githubusercontent.com:sub"
       values = [
-        "repo:${var.github_owner}/${var.github_repository_name}:pull_request",
-        "repo:${var.github_owner}/${var.github_repository_name}:ref:refs/heads/main",
+        "repo:${var.github_owner}@*/${var.github_repository_name}@*:pull_request",
+        "repo:${var.github_owner}@*/${var.github_repository_name}@*:ref:refs/heads/main",
       ]
     }
   }
@@ -172,9 +177,11 @@ data "aws_iam_policy_document" "apply_trust" {
       # A job that declares `environment: production` (as terraform-apply.yml's
       # apply job must, to reach the GitHub App secrets scoped to that
       # environment) gets an environment-based sub claim -- this REPLACES the
-      # ref-based one, it doesn't add to it. See ADR-0012.
+      # ref-based one, it doesn't add to it. See ADR-0012. `@*` after each
+      # name tolerates this org's immutable subject claims (embeds the
+      # org/repo's stable numeric ID) -- see ADR-0013.
       variable = "token.actions.githubusercontent.com:sub"
-      values   = ["repo:${var.github_owner}/${var.github_repository_name}:environment:production"]
+      values   = ["repo:${var.github_owner}@*/${var.github_repository_name}@*:environment:production"]
     }
   }
 }

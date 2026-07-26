@@ -24,3 +24,4 @@ history — see ADR-0004 for an example of amending ADR-0003.
 | [0010](0010-s3-state-backend.md) | Migrate Terraform state to an S3 backend, in this repo | Accepted — supersedes 0002 |
 | [0011](0011-sse-s3-not-kms-for-state-bucket.md) | State bucket uses SSE-S3 (AES256), not SSE-KMS with a customer managed key | Accepted |
 | [0012](0012-plan-jobs-drop-production-environment.md) | Plan jobs don't declare `environment: production`; only apply does | Accepted — amends 0010 |
+| [0013](0013-oidc-immutable-subject-claims.md) | Tolerate GitHub's immutable OIDC subject claims with `@*` wildcards | Accepted — amends 0010 |
