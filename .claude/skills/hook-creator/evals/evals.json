@@ -1,0 +1,47 @@
+{
+  "skill_name": "developing-claude-code-hooks",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Write a Claude Code hook that blocks any `git push` to the main or master branch. Wire it up in .claude/settings.json.",
+      "expected_output": "A PreToolUse command hook matched on Bash, inspecting tool_input.command for `git push ... main|master` (or push with no explicit branch while on main/master), exiting 2 (or hookSpecificOutput.permissionDecision=deny) with a clear reason. Correct settings.json wiring with matcher: Bash and ${CLAUDE_PROJECT_DIR} path.",
+      "files": [],
+      "assertions": [
+        "Registers under the PreToolUse event",
+        "Matcher targets the Bash tool",
+        "Script reads tool_input.command from stdin JSON",
+        "Blocks via exit code 2 (or permissionDecision: deny), not exit 1",
+        "Detects both main and master as protected branches",
+        "Uses ${CLAUDE_PROJECT_DIR} placeholder in the command path"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "I want a hook that runs `eslint --fix` on every file Claude edits, but only .js/.ts files, and I want it to actually fail the turn if lint errors remain after the fix.",
+      "expected_output": "A PostToolUse command hook matched on Write|Edit|MultiEdit, reading the edited file path (tool_response.filePath or tool_input.file_path), filtering to .js/.ts, running eslint --fix, and exiting 2 with eslint's remaining errors on stderr if any remain (correctly using exit 2, not exit 1, since PostToolUse can block via exit 2).",
+      "files": [],
+      "assertions": [
+        "Registers under the PostToolUse event",
+        "Matcher covers Write/Edit/MultiEdit",
+        "Filters to .js/.ts files only",
+        "Actually runs eslint --fix",
+        "Fails the turn with exit code 2 when lint errors remain (not exit 1)",
+        "Reads the correct edited-file-path field"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "Add a hook that injects the current git branch name and count of uncommitted files into context every time I submit a prompt.",
+      "expected_output": "A UserPromptSubmit command hook that shells out to git, and returns hookSpecificOutput.additionalContext (with hookEventName: UserPromptSubmit) containing the branch name and uncommitted file count. Exit 0.",
+      "files": [],
+      "assertions": [
+        "Registers under the UserPromptSubmit event",
+        "Outputs hookSpecificOutput.additionalContext",
+        "Includes the required hookEventName field alongside additionalContext",
+        "Computes the current git branch",
+        "Computes an uncommitted-file count",
+        "Exits 0 on the normal path"
+      ]
+    }
+  ]
+}
