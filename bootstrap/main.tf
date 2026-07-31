@@ -108,12 +108,15 @@ data "aws_iam_policy_document" "plan_trust" {
       # (GitHub embeds the org/repo's stable numeric ID: e.g.
       # repo:NerdIT-Tech@194043185/infra-terraform@1305370731:pull_request,
       # not the plain repo:OWNER/REPO:... format most docs show). See
-      # ADR-0013.
+      # ADR-0013. Every repo in github_repository_names shares this same
+      # trust -- and the same state object below, see its description.
       variable = "token.actions.githubusercontent.com:sub"
-      values = [
-        "repo:${var.github_owner}@*/${var.github_repository_name}@*:pull_request",
-        "repo:${var.github_owner}@*/${var.github_repository_name}@*:ref:refs/heads/main",
-      ]
+      values = flatten([
+        for repo in var.github_repository_names : [
+          "repo:${var.github_owner}@*/${repo}@*:pull_request",
+          "repo:${var.github_owner}@*/${repo}@*:ref:refs/heads/main",
+        ]
+      ])
     }
   }
 }
@@ -181,7 +184,10 @@ data "aws_iam_policy_document" "apply_trust" {
       # name tolerates this org's immutable subject claims (embeds the
       # org/repo's stable numeric ID) -- see ADR-0013.
       variable = "token.actions.githubusercontent.com:sub"
-      values   = ["repo:${var.github_owner}@*/${var.github_repository_name}@*:environment:production"]
+      values = [
+        for repo in var.github_repository_names :
+        "repo:${var.github_owner}@*/${repo}@*:environment:production"
+      ]
     }
   }
 }

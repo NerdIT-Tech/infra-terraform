@@ -14,10 +14,10 @@ variable "github_owner" {
   default     = "NerdIT-Tech"
 }
 
-variable "github_repository_name" {
-  description = "Repository name (within github_owner) the CI trust policies are scoped to."
-  type        = string
-  default     = "infra-terraform"
+variable "github_repository_names" {
+  description = "Repository names (within github_owner) the CI trust policies are scoped to. Every repo listed here can assume the plan/apply roles and read/write the single state object at state_key -- there is no per-repo state isolation, so only list repos that are meant to share that state."
+  type        = list(string)
+  default     = ["infra-terraform", "gitops"]
 }
 
 variable "create_github_oidc_provider" {
