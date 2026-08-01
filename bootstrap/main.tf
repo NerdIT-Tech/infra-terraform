@@ -1,8 +1,10 @@
-# Shared state backend for this org's Terraform repos. Bootstrapped once by
-# hand (see README.md) -- never applied by CI. Everything here is deliberately
-# scoped to exactly what the root config's CI roles need; the root config
-# never gets credentials broad enough to touch this bootstrap config's own
-# state or anything outside the one bucket it owns.
+# Shared state bucket + per-repo GitHub Actions OIDC trust for this org's
+# Terraform repos. Bootstrapped once by hand (see README.md) -- never
+# applied by CI. Each repo in var.repositories gets its own plan/apply role
+# pair, scoped to exactly that repo's own state object -- no repo's CI ever
+# gets credentials broad enough to touch another repo's state, this
+# bootstrap config's own state, or anything outside the one bucket it owns.
+# See ADR-0016.
 
 resource "aws_s3_bucket" "terraform_state" {
   bucket = var.state_bucket_name
@@ -76,20 +78,29 @@ resource "aws_iam_openid_connect_provider" "github_actions" {
 locals {
   github_oidc_provider_arn = var.create_github_oidc_provider ? aws_iam_openid_connect_provider.github_actions[0].arn : data.aws_iam_openid_connect_provider.github_actions[0].arn
 
-  state_object_arn = "${aws_s3_bucket.terraform_state.arn}/${var.state_key}"
-  # Native S3 locking (`use_lockfile`, Terraform >= 1.10) writes a companion
-  # object at this path via conditional PutObject/DeleteObject -- a separate
-  # object from the state itself, so the read-only plan role can take/release
-  # the lock without ever gaining write access to the actual state data.
-  state_lockfile_arn = "${local.state_object_arn}.tflock"
+  # One state object + lockfile per repo, keyed the same as var.repositories.
+  repo_state = {
+    for name, cfg in var.repositories : name => {
+      state_object_arn = "${aws_s3_bucket.terraform_state.arn}/${cfg.state_key}"
+      # Native S3 locking (`use_lockfile`, Terraform >= 1.10) writes a companion
+      # object at this path via conditional PutObject/DeleteObject -- a separate
+      # object from the state itself, so the read-only plan role can take/release
+      # the lock without ever gaining write access to the actual state data.
+      state_lockfile_arn = "${aws_s3_bucket.terraform_state.arn}/${cfg.state_key}.tflock"
+    }
+  }
 }
 
-# --- Plan role: read-only. Assumed by terraform-pr.yml (any PR) and by
-# terraform-apply.yml's plan job (push to main / workflow_dispatch). A PR
-# plan can never write state, no matter what it plans -- same invariant
-# ADR-0002 called out for the old cache-based setup.
+# --- Plan roles: read-only, one per repo in var.repositories. Assumed by
+# that repo's terraform-pr.yml (any PR) and terraform-apply.yml's plan job
+# (push to main / workflow_dispatch). A PR plan can never write state, no
+# matter what it plans -- same invariant ADR-0002 called out for the old
+# cache-based setup. Each repo gets its own role, trusted only by its own
+# OIDC token and scoped only to its own state_key -- see ADR-0016.
 
 data "aws_iam_policy_document" "plan_trust" {
+  for_each = var.repositories
+
   statement {
     effect  = "Allow"
     actions = ["sts:AssumeRoleWithWebIdentity"]
@@ -108,25 +119,25 @@ data "aws_iam_policy_document" "plan_trust" {
       # (GitHub embeds the org/repo's stable numeric ID: e.g.
       # repo:NerdIT-Tech@194043185/infra-terraform@1305370731:pull_request,
       # not the plain repo:OWNER/REPO:... format most docs show). See
-      # ADR-0013. Every repo in github_repository_names shares this same
-      # trust -- and the same state object below, see its description.
+      # ADR-0013.
       variable = "token.actions.githubusercontent.com:sub"
-      values = flatten([
-        for repo in var.github_repository_names : [
-          "repo:${var.github_owner}@*/${repo}@*:pull_request",
-          "repo:${var.github_owner}@*/${repo}@*:ref:refs/heads/main",
-        ]
-      ])
+      values = [
+        "repo:${var.github_owner}@*/${each.key}@*:pull_request",
+        "repo:${var.github_owner}@*/${each.key}@*:ref:refs/heads/main",
+      ]
     }
   }
 }
 
 resource "aws_iam_role" "plan" {
-  name               = var.plan_role_name
-  assume_role_policy = data.aws_iam_policy_document.plan_trust.json
+  for_each           = var.repositories
+  name               = "${each.key}-plan"
+  assume_role_policy = data.aws_iam_policy_document.plan_trust[each.key].json
 }
 
 data "aws_iam_policy_document" "plan_state_access" {
+  for_each = var.repositories
+
   statement {
     sid       = "StateBucketList"
     effect    = "Allow"
@@ -135,34 +146,37 @@ data "aws_iam_policy_document" "plan_state_access" {
     condition {
       test     = "StringEquals"
       variable = "s3:prefix"
-      values   = [var.state_key]
+      values   = [each.value.state_key]
     }
   }
   statement {
     sid       = "StateObjectRead"
     effect    = "Allow"
     actions   = ["s3:GetObject"]
-    resources = [local.state_object_arn]
+    resources = [local.repo_state[each.key].state_object_arn]
   }
   statement {
     sid       = "StateLockFile"
     effect    = "Allow"
     actions   = ["s3:GetObject", "s3:PutObject", "s3:DeleteObject"]
-    resources = [local.state_lockfile_arn]
+    resources = [local.repo_state[each.key].state_lockfile_arn]
   }
 }
 
 resource "aws_iam_role_policy" "plan_state_access" {
-  name   = "terraform-state-read"
-  role   = aws_iam_role.plan.id
-  policy = data.aws_iam_policy_document.plan_state_access.json
+  for_each = var.repositories
+  name     = "terraform-state-read"
+  role     = aws_iam_role.plan[each.key].id
+  policy   = data.aws_iam_policy_document.plan_state_access[each.key].json
 }
 
-# --- Apply role: read-write. Assumed only by terraform-apply.yml's apply
-# job, which only ever runs on main under the `production` environment gate
-# (ADR-0003).
+# --- Apply roles: read-write, one per repo in var.repositories. Assumed
+# only by that repo's terraform-apply.yml apply job, which only ever runs
+# on main under the `production` environment gate (ADR-0003).
 
 data "aws_iam_policy_document" "apply_trust" {
+  for_each = var.repositories
+
   statement {
     effect  = "Allow"
     actions = ["sts:AssumeRoleWithWebIdentity"]
@@ -184,20 +198,20 @@ data "aws_iam_policy_document" "apply_trust" {
       # name tolerates this org's immutable subject claims (embeds the
       # org/repo's stable numeric ID) -- see ADR-0013.
       variable = "token.actions.githubusercontent.com:sub"
-      values = [
-        for repo in var.github_repository_names :
-        "repo:${var.github_owner}@*/${repo}@*:environment:production"
-      ]
+      values   = ["repo:${var.github_owner}@*/${each.key}@*:environment:production"]
     }
   }
 }
 
 resource "aws_iam_role" "apply" {
-  name               = var.apply_role_name
-  assume_role_policy = data.aws_iam_policy_document.apply_trust.json
+  for_each           = var.repositories
+  name               = "${each.key}-apply"
+  assume_role_policy = data.aws_iam_policy_document.apply_trust[each.key].json
 }
 
 data "aws_iam_policy_document" "apply_state_access" {
+  for_each = var.repositories
+
   statement {
     sid       = "StateBucketList"
     effect    = "Allow"
@@ -206,25 +220,26 @@ data "aws_iam_policy_document" "apply_state_access" {
     condition {
       test     = "StringEquals"
       variable = "s3:prefix"
-      values   = [var.state_key]
+      values   = [each.value.state_key]
     }
   }
   statement {
     sid       = "StateObjectReadWrite"
     effect    = "Allow"
     actions   = ["s3:GetObject", "s3:PutObject"]
-    resources = [local.state_object_arn]
+    resources = [local.repo_state[each.key].state_object_arn]
   }
   statement {
     sid       = "StateLockFile"
     effect    = "Allow"
     actions   = ["s3:GetObject", "s3:PutObject", "s3:DeleteObject"]
-    resources = [local.state_lockfile_arn]
+    resources = [local.repo_state[each.key].state_lockfile_arn]
   }
 }
 
 resource "aws_iam_role_policy" "apply_state_access" {
-  name   = "terraform-state-read-write"
-  role   = aws_iam_role.apply.id
-  policy = data.aws_iam_policy_document.apply_state_access.json
+  for_each = var.repositories
+  name     = "terraform-state-read-write"
+  role     = aws_iam_role.apply[each.key].id
+  policy   = data.aws_iam_policy_document.apply_state_access[each.key].json
 }

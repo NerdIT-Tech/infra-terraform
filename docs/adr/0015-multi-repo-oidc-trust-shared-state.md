@@ -1,6 +1,6 @@
 # ADR-0015: Multiple repos share one OIDC trust and one state object
 
-**Status:** Accepted
+**Status:** Superseded by [ADR-0016](0016-per-repo-oidc-trust-and-state-isolation.md)
 **Date:** 2026-07-31
 
 ## Context

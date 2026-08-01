@@ -103,12 +103,13 @@ assuming one of two IAM roles created by `bootstrap/`:
 1. Run `bootstrap/` by hand — see [`bootstrap/README.md`](bootstrap/README.md)
    for the full chicken-and-egg procedure (it creates its own bucket, then
    migrates its own state into it).
-2. Note the outputs: `state_bucket`, `plan_role_arn`, `apply_role_arn`.
+2. Note the outputs: `state_bucket`, `role_arns` (per-repo map; this repo's
+   entry is `role_arns["infra-terraform"]`).
 3. **Settings → Secrets and variables → Actions → Variables**, add:
    - `AWS_REGION`
    - `TF_STATE_BUCKET` — `state_bucket` output
-   - `TF_AWS_PLAN_ROLE_ARN` — `plan_role_arn` output
-   - `TF_AWS_APPLY_ROLE_ARN` — `apply_role_arn` output
+   - `TF_AWS_PLAN_ROLE_ARN` — `role_arns["infra-terraform"].plan` output
+   - `TF_AWS_APPLY_ROLE_ARN` — `role_arns["infra-terraform"].apply` output
 
 No AWS secrets are needed — auth is OIDC role assumption, not static keys.
 
