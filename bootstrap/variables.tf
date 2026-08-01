@@ -15,9 +15,10 @@ variable "github_owner" {
 }
 
 variable "repositories" {
-  description = "Repos (within github_owner) that get their own AWS backend access. One plan/apply IAM role pair is created per map entry, named \"<repo>-plan\"/\"<repo>-apply\": each pair's trust policy matches only that repo's OIDC token, and its IAM policy is scoped only to that repo's own state_keys -- no cross-repo access, by construction. state_keys is a list, not a single key, because a repo can be structured as one Terraform root per service each with its own state key (gitops's ADR-0004) rather than infra-terraform's single root -- every listed key gets read (plan) or read/write (apply) access, still scoped to just that repo's role pair. Add a repo (or a key to an existing repo) by editing this map; roles, trust policies, and state-access policies are generated automatically."
+  description = "Repos (within github_owner) that get their own AWS backend access. One plan/apply IAM role pair is created per map entry, named \"<repo>-plan\"/\"<repo>-apply\": each pair's trust policy matches only that repo's OIDC token, and its IAM policy is scoped only to that repo's own state_keys -- no cross-repo access, by construction. state_keys is a list, not a single key, because a repo can be structured as one Terraform root per service each with its own state key (gitops's ADR-0004) rather than infra-terraform's single root -- every listed key gets read (plan) or read/write (apply) access, still scoped to just that repo's role pair. environment is optional: set it only if that repo's *plan* job itself declares `environment: <name>` (e.g. to reach environment-scoped secrets unrelated to production gating, see ADR-0018) -- doing so replaces its OIDC sub claim's pull_request/ref shape with an environment one (ADR-0012's mechanism), so the plan role's trust policy needs a matching pattern or every plan run is denied. Leave unset for repos whose plan job never declares an environment (e.g. infra-terraform, which deliberately avoids it per ADR-0012). Add a repo (or a key to an existing repo) by editing this map; roles, trust policies, and state-access policies are generated automatically."
   type = map(object({
-    state_keys = list(string)
+    state_keys  = list(string)
+    environment = optional(string)
   }))
   default = {
     "infra-terraform" = {
@@ -30,6 +31,10 @@ variable "repositories" {
       # matrix) -- no reason for this role to read it. Add it here if that
       # ever changes.
       state_keys = ["gitops/omada/terraform.tfstate"]
+      # gitops's terraform-pr.yml plan job declares `environment: homelab`
+      # to reach Proxmox connection secrets/vars scoped to that environment
+      # -- see ADR-0018.
+      environment = "homelab"
     }
   }
 }

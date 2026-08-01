@@ -124,12 +124,20 @@ data "aws_iam_policy_document" "plan_trust" {
       # (GitHub embeds the org/repo's stable numeric ID: e.g.
       # repo:NerdIT-Tech@194043185/infra-terraform@1305370731:pull_request,
       # not the plain repo:OWNER/REPO:... format most docs show). See
-      # ADR-0013.
+      # ADR-0013. If this repo's plan job declares its own `environment:`
+      # (each.value.environment set -- e.g. gitops, for environment-scoped
+      # secrets unrelated to production gating), its OIDC sub claim REPLACES
+      # the pull_request/ref shape below with an environment one, so that
+      # pattern has to be matched too, alongside them, not instead of them.
+      # See ADR-0018.
       variable = "token.actions.githubusercontent.com:sub"
-      values = [
-        "repo:${var.github_owner}@*/${each.key}@*:pull_request",
-        "repo:${var.github_owner}@*/${each.key}@*:ref:refs/heads/main",
-      ]
+      values = concat(
+        [
+          "repo:${var.github_owner}@*/${each.key}@*:pull_request",
+          "repo:${var.github_owner}@*/${each.key}@*:ref:refs/heads/main",
+        ],
+        each.value.environment != null ? ["repo:${var.github_owner}@*/${each.key}@*:environment:${each.value.environment}"] : []
+      )
     }
   }
 }
