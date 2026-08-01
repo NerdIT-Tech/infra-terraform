@@ -59,12 +59,20 @@ variable "gitignore_template" {
   description = "gitignore template to seed the repository with (requires auto_init)."
   type        = string
   default     = null
+  validation {
+    condition     = var.auto_init ? true : var.gitignore_template == null
+    error_message = "gitignore_template can only be set when auto_init is true."
+  }
 }
 
 variable "license_template" {
   description = "License template to seed the repository with (requires auto_init)."
   type        = string
   default     = null
+  validation {
+    condition     = var.auto_init ? true : var.license_template == null
+    error_message = "license_template can only be set when auto_init is true."
+  }
 }
 
 variable "allow_squash_merge" {

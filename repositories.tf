@@ -36,12 +36,6 @@ module "tplink_omada_sdk_for_go" {
   required_approving_review_count = 0
 }
 
-# --- Migrated repositories (pre-existing, brought under management via import) ---
-# Arguments below mirror each repo's actual current settings so the import
-# is behavior-neutral. `enable_branch_protection` is left off for all three
-# since none currently has a protection rule on `main` -- turning it on is
-# a deliberate follow-up, not part of this migration.
-
 module "pkg_linux" {
   source = "./modules/github-repository"
 
@@ -116,7 +110,7 @@ module "gitops" {
 
   allow_squash_merge     = true
   allow_merge_commit     = true
-  allow_rebase_merge     = true
+  allow_rebase_merge     = false
   delete_branch_on_merge = true
 
   enable_branch_protection = false
