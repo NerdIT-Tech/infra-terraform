@@ -27,3 +27,6 @@ history — see ADR-0004 for an example of amending ADR-0003.
 | [0013](0013-oidc-immutable-subject-claims.md) | Tolerate GitHub's immutable OIDC subject claims with `@*` wildcards | Accepted — amends 0010 |
 | [0014](0014-topics-not-prefix-for-repo-taxonomy.md) | Tag repo category with GitHub topics, not a name prefix | Accepted |
 | [0015](0015-terraform-pr-path-filter-superset.md) | `terraform-pr.yml`'s path filter must be a superset of `terraform-apply.yml`'s | Accepted — amends 0004 |
+| [0016](0016-multi-repo-oidc-trust-shared-state.md) | Multiple repos share one OIDC trust and one state object | Superseded by 0017 |
+| [0017](0017-per-repo-oidc-trust-and-state-isolation.md) | Per-repo OIDC trust and state isolation, not a shared role pair | Accepted — supersedes 0016 |
+| [0018](0018-plan-role-trusts-optional-repo-environment-claim.md) | Plan/apply role trust names each repo's environment gate, not a hardcoded "production" | Accepted |
