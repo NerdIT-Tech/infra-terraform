@@ -1,11 +1,11 @@
-# ADR-0016: Per-repo OIDC trust and state isolation, not a shared role pair
+# ADR-0017: Per-repo OIDC trust and state isolation, not a shared role pair
 
-**Status:** Accepted -- supersedes 0015
+**Status:** Accepted -- supersedes 0016
 **Date:** 2026-08-01
 
 ## Context
 
-[ADR-0015](0015-multi-repo-oidc-trust-shared-state.md) let a second repo
+[ADR-0016](0016-multi-repo-oidc-trust-shared-state.md) let a second repo
 (`gitops`) assume the existing `plan`/`apply` roles by widening their trust
 policies' `sub` conditions to a list of repos, while both repos kept
 sharing the one existing state object at `var.state_key`. It explicitly
@@ -45,7 +45,7 @@ state-scoped IAM policy for it are generated, not hand-wired.
 
 ## Alternatives considered
 
-- **Keep ADR-0015's shared roles, add `gitops/`'s key as a second resource
+- **Keep ADR-0016's shared roles, add `gitops/`'s key as a second resource
   statement** -- the option this ADR was originally reaching for. Rejected
   once it became clear it doesn't isolate anything (see Context): a
   compromised or merely misconfigured `gitops` PR could plan/apply
@@ -72,5 +72,5 @@ state-scoped IAM policy for it are generated, not hand-wired.
 - Removing a repo from `var.repositories` destroys its role pair -- safe by
   construction, since no other repo's trust or policy ever referenced it.
 - Two repos can still be pointed at the same `state_key` deliberately (nothing
-  stops it), but doing so re-creates the ADR-0015 sharing problem for just
+  stops it), but doing so re-creates the ADR-0016 sharing problem for just
   those two -- `bootstrap/README.md`'s "Adding a repo" section calls this out.

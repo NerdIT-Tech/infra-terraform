@@ -1,5 +1,5 @@
 # Preserves the already-applied infra-terraform-plan/apply roles' state
-# addresses across the switch to per-repo for_each (ADR-0016) -- these
+# addresses across the switch to per-repo for_each (ADR-0017) -- these
 # physical resources are unchanged (same names), only their address in
 # state moved from a single resource to a map keyed by repo name.
 

@@ -15,16 +15,21 @@ variable "github_owner" {
 }
 
 variable "repositories" {
-  description = "Repos (within github_owner) that get their own AWS backend access. One plan/apply IAM role pair is created per map entry, named \"<repo>-plan\"/\"<repo>-apply\": each pair's trust policy matches only that repo's OIDC token, and its IAM policy is scoped only to that repo's own state_key -- no cross-repo access, by construction. Add a repo by adding a map entry; roles, trust policies, and state-access policies are generated automatically."
+  description = "Repos (within github_owner) that get their own AWS backend access. One plan/apply IAM role pair is created per map entry, named \"<repo>-plan\"/\"<repo>-apply\": each pair's trust policy matches only that repo's OIDC token, and its IAM policy is scoped only to that repo's own state_keys -- no cross-repo access, by construction. state_keys is a list, not a single key, because a repo can be structured as one Terraform root per service each with its own state key (gitops's ADR-0004) rather than infra-terraform's single root -- every listed key gets read (plan) or read/write (apply) access, still scoped to just that repo's role pair. Add a repo (or a key to an existing repo) by editing this map; roles, trust policies, and state-access policies are generated automatically."
   type = map(object({
-    state_key = string
+    state_keys = list(string)
   }))
   default = {
     "infra-terraform" = {
-      state_key = "terraform.tfstate"
+      state_keys = ["terraform.tfstate"]
     }
     "gitops" = {
-      state_key = "gitops/terraform.tfstate"
+      # gitops/gha-runner/terraform.tfstate deliberately excluded: that
+      # service is applied by hand only, never planned/applied by gitops's
+      # own CI (see that repo's ADR-0005 and its terraform-pr.yml plan
+      # matrix) -- no reason for this role to read it. Add it here if that
+      # ever changes.
+      state_keys = ["gitops/omada/terraform.tfstate"]
     }
   }
 }

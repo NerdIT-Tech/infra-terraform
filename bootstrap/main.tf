@@ -4,7 +4,7 @@
 # pair, scoped to exactly that repo's own state object -- no repo's CI ever
 # gets credentials broad enough to touch another repo's state, this
 # bootstrap config's own state, or anything outside the one bucket it owns.
-# See ADR-0016.
+# See ADR-0017.
 
 resource "aws_s3_bucket" "terraform_state" {
   bucket = var.state_bucket_name
@@ -78,15 +78,20 @@ resource "aws_iam_openid_connect_provider" "github_actions" {
 locals {
   github_oidc_provider_arn = var.create_github_oidc_provider ? aws_iam_openid_connect_provider.github_actions[0].arn : data.aws_iam_openid_connect_provider.github_actions[0].arn
 
-  # One state object + lockfile per repo, keyed the same as var.repositories.
+  # State object + lockfile ARNs per repo, one pair per entry in that repo's
+  # state_keys list (keyed the same as var.repositories).
   repo_state = {
     for name, cfg in var.repositories : name => {
-      state_object_arn = "${aws_s3_bucket.terraform_state.arn}/${cfg.state_key}"
+      state_object_arns = [
+        for key in cfg.state_keys : "${aws_s3_bucket.terraform_state.arn}/${key}"
+      ]
       # Native S3 locking (`use_lockfile`, Terraform >= 1.10) writes a companion
       # object at this path via conditional PutObject/DeleteObject -- a separate
       # object from the state itself, so the read-only plan role can take/release
       # the lock without ever gaining write access to the actual state data.
-      state_lockfile_arn = "${aws_s3_bucket.terraform_state.arn}/${cfg.state_key}.tflock"
+      state_lockfile_arns = [
+        for key in cfg.state_keys : "${aws_s3_bucket.terraform_state.arn}/${key}.tflock"
+      ]
     }
   }
 }
@@ -96,7 +101,7 @@ locals {
 # (push to main / workflow_dispatch). A PR plan can never write state, no
 # matter what it plans -- same invariant ADR-0002 called out for the old
 # cache-based setup. Each repo gets its own role, trusted only by its own
-# OIDC token and scoped only to its own state_key -- see ADR-0016.
+# OIDC token and scoped only to its own state_key -- see ADR-0017.
 
 data "aws_iam_policy_document" "plan_trust" {
   for_each = var.repositories
@@ -146,20 +151,20 @@ data "aws_iam_policy_document" "plan_state_access" {
     condition {
       test     = "StringEquals"
       variable = "s3:prefix"
-      values   = [each.value.state_key]
+      values   = each.value.state_keys
     }
   }
   statement {
     sid       = "StateObjectRead"
     effect    = "Allow"
     actions   = ["s3:GetObject"]
-    resources = [local.repo_state[each.key].state_object_arn]
+    resources = local.repo_state[each.key].state_object_arns
   }
   statement {
     sid       = "StateLockFile"
     effect    = "Allow"
     actions   = ["s3:GetObject", "s3:PutObject", "s3:DeleteObject"]
-    resources = [local.repo_state[each.key].state_lockfile_arn]
+    resources = local.repo_state[each.key].state_lockfile_arns
   }
 }
 
@@ -220,20 +225,20 @@ data "aws_iam_policy_document" "apply_state_access" {
     condition {
       test     = "StringEquals"
       variable = "s3:prefix"
-      values   = [each.value.state_key]
+      values   = each.value.state_keys
     }
   }
   statement {
     sid       = "StateObjectReadWrite"
     effect    = "Allow"
     actions   = ["s3:GetObject", "s3:PutObject"]
-    resources = [local.repo_state[each.key].state_object_arn]
+    resources = local.repo_state[each.key].state_object_arns
   }
   statement {
     sid       = "StateLockFile"
     effect    = "Allow"
     actions   = ["s3:GetObject", "s3:PutObject", "s3:DeleteObject"]
-    resources = [local.repo_state[each.key].state_lockfile_arn]
+    resources = local.repo_state[each.key].state_lockfile_arns
   }
 }
 

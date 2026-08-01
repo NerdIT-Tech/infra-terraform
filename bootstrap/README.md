@@ -7,7 +7,7 @@ pair -- read-only `plan`, read-write `apply` -- **per repo** listed in
 token and scoped only to that repo's own state object; no repo's CI can
 touch another's state. See [ADR-0010](../docs/adr/0010-s3-state-backend.md)
 for the shared-bucket decision and
-[ADR-0016](../docs/adr/0016-per-repo-oidc-trust-and-state-isolation.md) for
+[ADR-0017](../docs/adr/0017-per-repo-oidc-trust-and-state-isolation.md) for
 the per-repo role isolation.
 
 This is a one-time (or rarely-touched) setup, applied by hand with your own
@@ -65,7 +65,7 @@ repo (**Settings → Secrets and variables → Actions → Variables**) from
    Terraform state should live under (e.g. `"gitops" = { state_key =
    "gitops/terraform.tfstate" }`). Use a key no other entry uses -- sharing
    a `state_key` between repos means sharing write access to that state,
-   which defeats the isolation ADR-0016 is for.
+   which defeats the isolation ADR-0017 is for.
 2. `terraform apply` (see "Changing this config later" below). This creates
    a new `<repo>-plan`/`<repo>-apply` role pair, scoped only to that repo's
    `state_key`.
