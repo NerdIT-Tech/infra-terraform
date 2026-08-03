@@ -15,7 +15,7 @@ variable "github_owner" {
 }
 
 variable "repositories" {
-  description = "Repos (within github_owner) that get their own AWS backend access. One plan/apply IAM role pair is created per map entry, named \"<repo>-plan\"/\"<repo>-apply\": each pair's trust policy matches only that repo's OIDC token, and its IAM policy is scoped only to that repo's own state_keys -- no cross-repo access, by construction. state_keys is a list, not a single key, because a repo can be structured as one Terraform root per service each with its own state key (gitops's ADR-0004) rather than infra-terraform's single root -- every listed key gets read (plan) or read/write (apply) access, still scoped to just that repo's role pair. plan_environment is optional: set it only if that repo's *plan* job itself declares `environment: <name>` (e.g. to reach environment-scoped secrets unrelated to production gating, see ADR-0018) -- doing so replaces its OIDC sub claim's pull_request/ref shape with an environment one (ADR-0012's mechanism), so the plan role's trust policy needs a matching pattern or every plan run is denied; leave unset for repos whose plan job never declares an environment (e.g. infra-terraform, per ADR-0012). apply_environment defaults to \"production\" (ADR-0003/ADR-0012's gate) -- override it for a repo whose apply job is gated by a differently-named environment instead (e.g. gitops's homelab gate). Add a repo (or a key to an existing repo) by editing this map; roles, trust policies, and state-access policies are generated automatically."
+  description = "Repos (within github_owner) whose plan/apply IAM role pair is created here, in bootstrap/. As of ADR-0019, this is exactly infra-terraform -- its own role pair has the same chicken-and-egg problem as the state bucket itself (CI can't create the credentials it needs to run itself), so it's the one repo that can't move to the main repo's ci-roles.tf like every other repo does. Kept as a map (rather than inlining a single set of resources) so the existing for_each machinery in main.tf and the state addresses in moved.tf don't need to change. state_keys is a list, not a single key, because a repo can be structured as one Terraform root per service each with its own state key -- every listed key gets read (plan) or read/write (apply) access. plan_environment is optional: set it only if that repo's *plan* job itself declares `environment: <name>` (see ADR-0018) -- infra-terraform's plan job doesn't, per ADR-0012. apply_environment defaults to \"production\" (ADR-0003/ADR-0012's gate)."
   type = map(object({
     state_keys        = list(string)
     plan_environment  = optional(string)
@@ -24,20 +24,6 @@ variable "repositories" {
   default = {
     "infra-terraform" = {
       state_keys = ["terraform.tfstate"]
-    }
-    "gitops" = {
-      # gitops/gha-runner/terraform.tfstate deliberately excluded: that
-      # service is applied by hand only, never planned/applied by gitops's
-      # own CI (see that repo's ADR-0005 and its terraform-pr.yml plan
-      # matrix) -- no reason for this role to read it. Add it here if that
-      # ever changes.
-      state_keys = ["gitops/omada/terraform.tfstate"]
-      # gitops's terraform-pr.yml plan job declares `environment: homelab`
-      # to reach Proxmox connection secrets/vars scoped to that environment,
-      # and its apply job is gated by that same homelab environment, not a
-      # "production" one -- see ADR-0018.
-      plan_environment  = "homelab"
-      apply_environment = "homelab"
     }
   }
 }

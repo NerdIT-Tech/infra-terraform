@@ -30,3 +30,4 @@ history — see ADR-0004 for an example of amending ADR-0003.
 | [0016](0016-multi-repo-oidc-trust-shared-state.md) | Multiple repos share one OIDC trust and one state object | Superseded by 0017 |
 | [0017](0017-per-repo-oidc-trust-and-state-isolation.md) | Per-repo OIDC trust and state isolation, not a shared role pair | Accepted — supersedes 0016 |
 | [0018](0018-plan-role-trusts-optional-repo-environment-claim.md) | Plan/apply role trust names each repo's environment gate, not a hardcoded "production" | Accepted |
+| [0019](0019-move-per-repo-ci-roles-out-of-bootstrap.md) | Move per-repo CI IAM role generation out of bootstrap/, into the main repo | Accepted — supersedes 0010, amends 0017 |

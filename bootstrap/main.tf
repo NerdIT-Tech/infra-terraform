@@ -258,3 +258,74 @@ resource "aws_iam_role_policy" "apply_state_access" {
   role     = aws_iam_role.apply[each.key].id
   policy   = data.aws_iam_policy_document.apply_state_access[each.key].json
 }
+
+# --- IAM management: lets infra-terraform's own CI (via ci-roles.tf and
+# modules/terraform-ci-role/ in the main repo) create and maintain every
+# OTHER repo's plan/apply role pair -- without ever being able to touch its
+# own. Granting this here, in bootstrap/, is deliberate: this is itself a
+# change to what infra-terraform's apply role can do, so it goes through
+# the same hand-applied path as any other change to that role. See
+# ADR-0019, which supersedes ADR-0010's "nothing in CI ever creates or
+# modifies IAM roles" for repos other than this one.
+
+data "aws_caller_identity" "current" {}
+
+locals {
+  # Explicitly excluded from the Allow below (via the Deny statement) so
+  # infra-terraform's own CI can never widen its own permissions.
+  infra_terraform_own_role_arns = [
+    aws_iam_role.plan["infra-terraform"].arn,
+    aws_iam_role.apply["infra-terraform"].arn,
+  ]
+}
+
+data "aws_iam_policy_document" "apply_manages_other_repo_roles" {
+  statement {
+    sid    = "ManageOtherRepoCiRoles"
+    effect = "Allow"
+    actions = [
+      "iam:CreateRole",
+      "iam:DeleteRole",
+      "iam:GetRole",
+      "iam:TagRole",
+      "iam:UntagRole",
+      "iam:UpdateAssumeRolePolicy",
+      "iam:PutRolePolicy",
+      "iam:GetRolePolicy",
+      "iam:DeleteRolePolicy",
+    ]
+    # Scoped by naming convention, not an AWS-enforced boundary -- see
+    # ADR-0019's Consequences for what onboarding a repo whose role name
+    # would collide with this pattern requires double-checking first.
+    resources = [
+      "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/*-plan",
+      "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/*-apply",
+    ]
+  }
+
+  # An explicit Deny always wins over an Allow in the same evaluation, even
+  # one from a broader wildcard match above -- this is the security
+  # invariant ADR-0019 calls out: infra-terraform's own apply role can
+  # create/modify every OTHER repo's role pair, but never its own.
+  statement {
+    sid    = "DenySelfModification"
+    effect = "Deny"
+    actions = [
+      "iam:CreateRole",
+      "iam:DeleteRole",
+      "iam:TagRole",
+      "iam:UntagRole",
+      "iam:UpdateAssumeRolePolicy",
+      "iam:PutRolePolicy",
+      "iam:GetRolePolicy",
+      "iam:DeleteRolePolicy",
+    ]
+    resources = local.infra_terraform_own_role_arns
+  }
+}
+
+resource "aws_iam_role_policy" "apply_manages_other_repo_roles" {
+  name   = "manage-other-repo-ci-roles"
+  role   = aws_iam_role.apply["infra-terraform"].id
+  policy = data.aws_iam_policy_document.apply_manages_other_repo_roles.json
+}
