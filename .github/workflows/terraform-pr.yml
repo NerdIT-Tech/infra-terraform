@@ -32,40 +32,9 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - uses: hashicorp/setup-terraform@v4
+      - uses: ./.github/actions/terraform-lint-scan
         with:
-          terraform_version: ${{ env.TF_VERSION }}
-
-      - name: terraform fmt
-        run: terraform fmt -check -recursive -diff
-
-      - name: terraform init (no backend)
-        run: terraform init -backend=false
-
-      - name: terraform validate
-        run: terraform validate
-
-      - uses: terraform-linters/setup-tflint@v6
-        with:
-          tflint_version: latest
-
-      - name: tflint init
-        run: tflint --init
-
-      - name: tflint
-        run: tflint --recursive
-
-      - name: Trivy IaC scan
-        uses: aquasecurity/trivy-action@v0.36.0
-        with:
-          scan-type: config
-          scan-ref: .
-          exit-code: "1"
-          severity: "CRITICAL,HIGH"
-          # v0.70.0 (the action's own default) doesn't recognize that
-          # github_repository_vulnerability_alerts satisfies GIT-0003 for
-          # a linked github_repository -- only a later Trivy release does.
-          version: v0.72.0
+          terraform-version: ${{ env.TF_VERSION }}
 
   plan:
     name: Plan
@@ -85,43 +54,32 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - uses: hashicorp/setup-terraform@v4
-        with:
-          terraform_version: ${{ env.TF_VERSION }}
-
       # Read-only role (bootstrap/main.tf's `plan` role): can read state and
       # take/release the lock, but has no S3 write permission at all -- a PR
       # plan can't corrupt state no matter what it plans (ADR-0010).
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v6
+      - uses: ./.github/actions/terraform-init-s3
         with:
+          terraform-version: ${{ env.TF_VERSION }}
           role-to-assume: ${{ vars.TF_AWS_PLAN_ROLE_ARN }}
           aws-region: ${{ vars.AWS_REGION }}
+          state-bucket: ${{ vars.TF_STATE_BUCKET }}
 
-      - name: terraform init
-        run: |
-          terraform init \
-            -backend-config="bucket=${{ vars.TF_STATE_BUCKET }}" \
-            -backend-config="key=terraform.tfstate" \
-            -backend-config="region=${{ vars.AWS_REGION }}" \
-            -backend-config="use_lockfile=true"
-
-      - name: terraform plan
-        id: plan
+      - id: plan
         timeout-minutes: 5
-        run: terraform plan -no-color -input=false -out=tfplan
-        continue-on-error: true
+        uses: ./.github/actions/terraform-plan
+        with:
+          continue-on-error: "true"
 
-      - name: Release state lock
+      - uses: ./.github/actions/terraform-release-lock
         if: always()
-        run: |
-          aws s3 rm "s3://${{ vars.TF_STATE_BUCKET }}/terraform.tfstate.tflock" \
-            --region "${{ vars.AWS_REGION }}" || true
+        with:
+          state-bucket: ${{ vars.TF_STATE_BUCKET }}
+          aws-region: ${{ vars.AWS_REGION }}
 
       # Saved so a merge of this PR can apply exactly what was reviewed
       # here instead of re-planning after merge (see terraform-apply.yml).
       - name: Upload plan artifact
-        if: steps.plan.outcome == 'success'
+        if: steps.plan.outputs.outcome == 'success'
         uses: actions/upload-artifact@v7
         with:
           name: tfplan
@@ -129,40 +87,19 @@ jobs:
           retention-days: 5
 
       - name: Comment plan on PR
-        uses: actions/github-script@v9
-        env:
-          PLAN_OUTPUT: ${{ steps.plan.outputs.stdout }}
-          PLAN_OUTCOME: ${{ steps.plan.outcome }}
+        uses: marocchino/sticky-pull-request-comment@v3
         with:
-          script: |
-            const marker = "<!-- terraform-plan -->";
-            const outcome = process.env.PLAN_OUTCOME;
-            const output = process.env.PLAN_OUTPUT || "(no output captured)";
-            const body = `${marker}\n### Terraform Plan (\`${outcome}\`)\n<details><summary>Show plan</summary>\n\n\`\`\`\n${output}\n\`\`\`\n\n</details>`;
+          header: terraform-plan
+          message: |
+            ### Terraform Plan (`${{ steps.plan.outputs.outcome }}`)
+            <details><summary>Show plan</summary>
 
-            const { data: comments } = await github.rest.issues.listComments({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.issue.number,
-            });
-            const existing = comments.find((c) => c.body.includes(marker));
+            ```
+            ${{ steps.plan.outputs.stdout || '(no output captured)' }}
+            ```
 
-            if (existing) {
-              await github.rest.issues.updateComment({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                comment_id: existing.id,
-                body,
-              });
-            } else {
-              await github.rest.issues.createComment({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: context.issue.number,
-                body,
-              });
-            }
+            </details>
 
       - name: Fail if plan failed
-        if: steps.plan.outcome == 'failure'
+        if: steps.plan.outputs.outcome == 'failure'
         run: exit 1
