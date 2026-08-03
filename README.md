@@ -15,11 +15,19 @@ teams/permissions/etc. as they're added later.
   repo is one module call, not a copy-pasted resource block
   ([ADR-0009](docs/adr/0009-one-module-per-repo.md)).
 - `repositories.tf` — one `module` block per repository this org manages.
+- `ci-roles.tf` — generates an AWS plan/apply IAM role pair for every
+  Terraform-consuming repo *other than* `infra-terraform` itself, one
+  `var.ci_repositories` map entry per repo (see
+  [Adding a Terraform-consuming repo](#adding-a-terraform-consuming-repo)
+  and [ADR-0019](docs/adr/0019-move-per-repo-ci-roles-out-of-bootstrap.md)).
 - `providers.tf`, `versions.tf`, `variables.tf`, `outputs.tf` — root wiring.
 - `bootstrap/` — a separate, rarely-touched Terraform config that creates
-  this repo's own state backend (S3 bucket, CI's AWS IAM roles). Applied by
-  hand, never by CI — see [`bootstrap/README.md`](bootstrap/README.md) and
-  [ADR-0010](docs/adr/0010-s3-state-backend.md).
+  this repo's own state backend (S3 bucket, GitHub OIDC provider) and
+  `infra-terraform`'s *own* plan/apply role pair — the one role pair that
+  can't move into this repo's own CI (chicken-and-egg: CI can't create the
+  credentials it needs to run itself). Applied by hand, never by CI — see
+  [`bootstrap/README.md`](bootstrap/README.md), [ADR-0010](docs/adr/0010-s3-state-backend.md),
+  and [ADR-0019](docs/adr/0019-move-per-repo-ci-roles-out-of-bootstrap.md).
 
 ### Adding a repository
 
@@ -27,6 +35,30 @@ Copy the `module "servicenow_sdk_for_go"` block in `repositories.tf`, give it
 a new module name and `name`, and adjust the other arguments. See
 `modules/github-repository/variables.tf` for everything that's configurable
 (visibility, topics, merge settings, branch protection, etc).
+
+### Adding a Terraform-consuming repo
+
+Only relevant for a repo that runs its *own* Terraform against this org's
+shared state bucket (today: `gitops`) — not every repo managed above needs
+this. Add an entry to `var.ci_repositories` in `variables.tf` (or
+`terraform.tfvars`), keyed by the repo name, with its `state_keys` (and
+`plan_environment`/`apply_environment` if that repo's jobs declare a
+GitHub Actions environment other than `"production"` — see
+[ADR-0018](docs/adr/0018-plan-role-trusts-optional-repo-environment-claim.md)).
+Merge that PR, then read the new role's ARNs from this repo's own outputs
+(e.g. `ci_role_arns["<repo>"].plan`/`.apply`) and set them as *that* repo's
+own `TF_AWS_PLAN_ROLE_ARN`/`TF_AWS_APPLY_ROLE_ARN` Actions variables —
+same shape as this repo's own wiring below, just for the other repo.
+
+This is a normal reviewed PR through this repo's own plan-gated pipeline
+([ADR-0003](docs/adr/0003-plan-gated-apply-pipeline.md)), not a hand-run
+`bootstrap/` apply — see [ADR-0019](docs/adr/0019-move-per-repo-ci-roles-out-of-bootstrap.md)
+for why, and for the one exception (`infra-terraform`'s own role pair,
+still created in `bootstrap/`). Making this possible means this repo's own
+`apply` role is granted IAM permissions to create/modify *other* repos'
+role pairs — scoped to role names matching `*-plan`/`*-apply`, with an
+explicit `Deny` (added in `bootstrap/main.tf`) preventing it from ever
+touching its own `infra-terraform-plan`/`infra-terraform-apply` roles.
 
 ## Authentication
 
@@ -74,8 +106,11 @@ locking (`use_lockfile`, Terraform >= 1.10 — see `required_version` in
 `versions.tf`) ([ADR-0010](docs/adr/0010-s3-state-backend.md), which
 supersedes the earlier Actions-cache approach in
 [ADR-0002](docs/adr/0002-local-state-via-actions-cache.md)). The bucket
-and CI's AWS IAM roles are created by [`bootstrap/`](bootstrap/README.md)
-— a separate config, applied by hand, never by CI.
+and this repo's *own* AWS IAM role pair are created by
+[`bootstrap/`](bootstrap/README.md) — a separate config, applied by hand,
+never by CI. Every *other* Terraform-consuming repo's role pair is created
+here instead, by this repo's own CI ([ADR-0019](docs/adr/0019-move-per-repo-ci-roles-out-of-bootstrap.md)
+— see [Adding a Terraform-consuming repo](#adding-a-terraform-consuming-repo)).
 
 `versions.tf`'s `backend "s3" {}` block is empty on purpose: bucket/region
 are account-specific values supplied via `-backend-config` at
@@ -112,6 +147,9 @@ assuming one of two IAM roles created by `bootstrap/`:
    - `TF_AWS_APPLY_ROLE_ARN` — `role_arns["infra-terraform"].apply` output
 
 No AWS secrets are needed — auth is OIDC role assumption, not static keys.
+`TF_STATE_BUCKET` doubles as `ci-roles.tf`'s `state_bucket_name` input (see
+the workflows' `TF_VAR_state_bucket_name` env var) — no separate variable
+to add for that.
 
 ## CI/CD
 
@@ -131,7 +169,13 @@ Three workflows under `.github/workflows/`, plus Dependabot:
   - `apply` runs under the `production` GitHub Environment (required
     reviewer approval) and applies the exact `tfplan` artifact, never a
     plan recomputed at apply time
-    ([ADR-0003](docs/adr/0003-plan-gated-apply-pipeline.md)).
+    ([ADR-0003](docs/adr/0003-plan-gated-apply-pipeline.md)). As of
+    [ADR-0019](docs/adr/0019-move-per-repo-ci-roles-out-of-bootstrap.md),
+    this is the job that creates/updates every Terraform-consuming repo's
+    AWS role pair *other than* `infra-terraform`'s own — its role is
+    granted scoped `iam:*Role*`/`iam:*RolePolicy` permissions for that,
+    with an explicit `Deny` (in `bootstrap/main.tf`) blocking it from ever
+    modifying its own `infra-terraform-plan`/`infra-terraform-apply` roles.
   - `cleanup-pr-comment` deletes the sticky plan comment from the PR once
     a merge-triggered apply succeeds
     ([ADR-0005](docs/adr/0005-sticky-pr-plan-comment.md)).

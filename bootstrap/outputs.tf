@@ -4,7 +4,7 @@ output "state_bucket" {
 }
 
 output "role_arns" {
-  description = "Plan (read-only) and apply (read-write) role ARNs per repo, keyed by repo name (var.repositories' keys). Every repo -- including infra-terraform -- reads its own TF_AWS_PLAN_ROLE_ARN/TF_AWS_APPLY_ROLE_ARN from its own entry here, e.g. role_arns[\"infra-terraform\"].plan / .apply. Roles are not shared across repos, see ADR-0017."
+  description = "Plan (read-only) and apply (read-write) role ARNs per repo in var.repositories -- as of ADR-0019, that's exactly infra-terraform, e.g. role_arns[\"infra-terraform\"].plan / .apply. Every other repo's role ARNs come from the main repo's own outputs (module.<repo>_ci_role in ci-roles.tf), not from here."
   value = {
     for name, _ in var.repositories : name => {
       plan  = aws_iam_role.plan[name].arn

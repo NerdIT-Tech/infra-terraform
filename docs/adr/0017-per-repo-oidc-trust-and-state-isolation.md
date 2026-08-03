@@ -1,6 +1,6 @@
 # ADR-0017: Per-repo OIDC trust and state isolation, not a shared role pair
 
-**Status:** Accepted -- supersedes 0016
+**Status:** Accepted -- supersedes 0016; amended by 0019 (the per-repo `for_each` mechanism here now applies only to `infra-terraform` in `bootstrap/`; every other repo's role pair is generated in the main repo instead)
 **Date:** 2026-08-01
 
 ## Context
