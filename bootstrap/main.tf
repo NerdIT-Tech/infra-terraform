@@ -292,6 +292,7 @@ data "aws_iam_policy_document" "apply_manages_other_repo_roles" {
       "iam:UpdateAssumeRolePolicy",
       "iam:PutRolePolicy",
       "iam:GetRolePolicy",
+      "iam:ListRolePolicies",
       "iam:DeleteRolePolicy",
     ]
     # Scoped by naming convention, not an AWS-enforced boundary -- see
@@ -318,6 +319,7 @@ data "aws_iam_policy_document" "apply_manages_other_repo_roles" {
       "iam:UpdateAssumeRolePolicy",
       "iam:PutRolePolicy",
       "iam:GetRolePolicy",
+      "iam:ListRolePolicies",
       "iam:DeleteRolePolicy",
     ]
     resources = local.infra_terraform_own_role_arns
@@ -345,6 +347,7 @@ data "aws_iam_policy_document" "plan_reads_other_repo_roles" {
     actions = [
       "iam:GetRole",
       "iam:GetRolePolicy",
+      "iam:ListRolePolicies",
     ]
     resources = [
       "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/*-plan",
