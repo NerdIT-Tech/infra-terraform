@@ -14,12 +14,17 @@ teams/permissions/etc. as they're added later.
   and (optionally) branch protection on its default branch. Every managed
   repo is one module call, not a copy-pasted resource block
   ([ADR-0009](docs/adr/0009-one-module-per-repo.md)).
+- `modules/aws/tf-iams/` — reusable module wrapping one repo's plan/apply AWS
+  IAM role pair: OIDC trust (branches, GitHub Actions environment, and/or
+  specific workflow files) plus scoped Terraform state S3 access
+  ([ADR-0020](docs/adr/0020-modularize-ci-roles.md)).
 - `repositories.tf` — one `module` block per repository this org manages.
-- `ci-roles.tf` — generates an AWS plan/apply IAM role pair for every
-  Terraform-consuming repo *other than* `infra-terraform` itself, one
-  `var.ci_repositories` map entry per repo (see
-  [Adding a Terraform-consuming repo](#adding-a-terraform-consuming-repo)
-  and [ADR-0019](docs/adr/0019-move-per-repo-ci-roles-out-of-bootstrap.md)).
+- `ci-roles.tf` — one `modules/aws/tf-iams` call per entry in
+  `var.ci_repositories`, generating an AWS plan/apply IAM role pair for
+  every Terraform-consuming repo *other than* `infra-terraform` itself (see
+  [Adding a Terraform-consuming repo](#adding-a-terraform-consuming-repo),
+  [ADR-0019](docs/adr/0019-move-per-repo-ci-roles-out-of-bootstrap.md), and
+  [ADR-0020](docs/adr/0020-modularize-ci-roles.md)).
 - `providers.tf`, `versions.tf`, `variables.tf`, `outputs.tf` — root wiring.
 - `bootstrap/` — a separate, rarely-touched Terraform config that creates
   this repo's own state backend (S3 bucket, GitHub OIDC provider) and
@@ -41,10 +46,24 @@ a new module name and `name`, and adjust the other arguments. See
 Only relevant for a repo that runs its *own* Terraform against this org's
 shared state bucket (today: `gitops`) — not every repo managed above needs
 this. Add an entry to `var.ci_repositories` in `variables.tf` (or
-`terraform.tfvars`), keyed by the repo name, with its `state_keys` (and
-`plan_environment`/`apply_environment` if that repo's jobs declare a
-GitHub Actions environment other than `"production"` — see
-[ADR-0018](docs/adr/0018-plan-role-trusts-optional-repo-environment-claim.md)).
+`terraform.tfvars`), keyed by the repo name, with its `state_keys` and,
+optionally ([ADR-0020](docs/adr/0020-modularize-ci-roles.md)):
+
+- `plan_environment`/`apply_environment` if that repo's jobs declare a
+  GitHub Actions environment other than `"production"` — see
+  [ADR-0018](docs/adr/0018-plan-role-trusts-optional-repo-environment-claim.md).
+- `plan_refs` (default `["main"]`) — branches, beyond the always-trusted
+  `pull_request` run, whose push-triggered plan job is trusted.
+- `apply_refs` (default `[]`) — branches *additionally* trusted for apply
+  via a ref-based claim, on top of the environment gate.
+  **Read the module's `apply_refs` warning before setting this**: it lets
+  a push to that branch assume the read-write apply role without going
+  through any required-reviewer gate at all, unlike the default
+  environment-only trust.
+- `plan_workflows`/`apply_workflows` (default `[]`) — restrict trust to
+  specific workflow file names (e.g. `"terraform-pr.yml"`), matched against
+  the OIDC `job_workflow_ref` claim.
+
 Merge that PR, then read the new role's ARNs from this repo's own outputs
 (e.g. `ci_role_arns["<repo>"].plan`/`.apply`) and set them as *that* repo's
 own `TF_AWS_PLAN_ROLE_ARN`/`TF_AWS_APPLY_ROLE_ARN` Actions variables —
