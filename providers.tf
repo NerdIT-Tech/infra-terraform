@@ -10,7 +10,7 @@ provider "github" {
 # Region is picked up from the AWS_REGION/AWS_DEFAULT_REGION env var that
 # aws-actions/configure-aws-credentials already exports for the state
 # backend (see README.md#state) -- not hardcoded here, same reasoning as
-# the backend "s3" {} block below. Used by modules/terraform-ci-role/
-# (ADR-0019) to create every Terraform-consuming repo's IAM role pair
-# except infra-terraform's own, which stays in bootstrap/.
+# the backend "s3" {} block below. Used by modules/aws/tf-iams/
+# (ADR-0019/ADR-0020) to create every Terraform-consuming repo's IAM role
+# pair except infra-terraform's own, which stays in bootstrap/.
 provider "aws" {}

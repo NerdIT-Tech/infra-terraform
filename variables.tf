@@ -10,11 +10,15 @@ variable "state_bucket_name" {
 }
 
 variable "ci_repositories" {
-  description = "Repos (within github_owner) other than infra-terraform that get their own AWS plan/apply IAM role pair, generated in ci-roles.tf. infra-terraform's own role pair stays in bootstrap/ -- it has the same chicken-and-egg problem as the state bucket itself (CI can't create the credentials it needs to run itself) -- see ADR-0019. Same shape as bootstrap's own var.repositories before ADR-0019, just for every OTHER repo now: one role pair per map entry, named \"<repo>-plan\"/\"<repo>-apply\", each scoped only to that repo's own state_keys -- no cross-repo access, by construction (ADR-0017). state_keys is a list, not a single key, because a repo can be structured as one Terraform root per service each with its own state key. plan_environment is optional: set it only if that repo's *plan* job itself declares `environment: <name>` (ADR-0018). apply_environment defaults to \"production\" (ADR-0003/ADR-0012's gate) -- override for a repo whose apply job is gated by a differently-named environment instead."
+  description = "Repos (within github_owner) other than infra-terraform that get their own AWS plan/apply IAM role pair, generated via modules/aws/tf-iams in ci-roles.tf. infra-terraform's own role pair stays in bootstrap/ -- it has the same chicken-and-egg problem as the state bucket itself (CI can't create the credentials it needs to run itself) -- see ADR-0019. One role pair per map entry, named \"<repo>-plan\"/\"<repo>-apply\", each scoped only to that repo's own state_keys -- no cross-repo access, by construction (ADR-0017). state_keys is a list, not a single key, because a repo can be structured as one Terraform root per service each with its own state key. plan_refs/apply_refs (default [\"main\"]/[]) are branch names trusted via a ref-based OIDC sub claim, on top of plan's always-trusted pull_request. plan_environment/apply_environment (ADR-0018) add an environment-based sub claim instead -- apply_environment defaults to \"production\" (ADR-0003/ADR-0012's required-reviewer gate). Widening apply_refs bypasses that gate for this repo -- see ADR-0020 and the module's own apply_refs warning before setting it. plan_workflows/apply_workflows (ADR-0020) further scope trust to specific workflow files via the job_workflow_ref claim, ANDed with the sub claim match; empty means no workflow restriction."
   type = map(object({
     state_keys        = list(string)
+    plan_refs         = optional(list(string), ["main"])
+    apply_refs        = optional(list(string), [])
     plan_environment  = optional(string)
     apply_environment = optional(string, "production")
+    plan_workflows    = optional(list(string), [])
+    apply_workflows   = optional(list(string), [])
   }))
   default = {
     "gitops" = {

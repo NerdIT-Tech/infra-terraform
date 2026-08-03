@@ -7,7 +7,7 @@ terraform {
       source  = "integrations/github"
       version = "~> 6.0"
     }
-    # Needed for modules/terraform-ci-role/ (ADR-0019) -- generates the AWS
+    # Needed for modules/aws/tf-iams/ (ADR-0019/ADR-0020) -- generates the AWS
     # IAM role pair for every Terraform-consuming repo except infra-terraform
     # itself, which stays in bootstrap/.
     aws = {
