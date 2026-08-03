@@ -1,6 +1,6 @@
 # ADR-0010: Migrate Terraform state to an S3 backend, in this repo
 
-**Status:** Accepted — supersedes 0002
+**Status:** Accepted — supersedes 0002; the "nothing in CI ever creates or modifies IAM roles" consequence is superseded by 0019
 **Date:** 2026-07-19
 
 ## Context

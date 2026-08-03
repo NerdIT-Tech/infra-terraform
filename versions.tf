@@ -7,6 +7,13 @@ terraform {
       source  = "integrations/github"
       version = "~> 6.0"
     }
+    # Needed for modules/aws/tf-iams/ (ADR-0019/ADR-0020) -- generates the AWS
+    # IAM role pair for every Terraform-consuming repo except infra-terraform
+    # itself, which stays in bootstrap/.
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 6.56"
+    }
   }
 
   # Bucket/region are supplied via -backend-config at init time (see

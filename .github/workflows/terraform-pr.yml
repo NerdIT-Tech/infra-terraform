@@ -48,6 +48,9 @@ jobs:
       GITHUB_APP_ID: ${{ vars.TF_GITHUB_APP_ID }}
       GITHUB_APP_INSTALLATION_ID: ${{ vars.TF_GITHUB_APP_INSTALLATION_ID }}
       GITHUB_APP_PEM_FILE: ${{ secrets.TF_GITHUB_APP_PEM }}
+      # ci-roles.tf (ADR-0019) looks up the state bucket by name -- no
+      # default, since it's account-specific, same as TF_STATE_BUCKET below.
+      TF_VAR_state_bucket_name: ${{ vars.TF_STATE_BUCKET }}
     steps:
       - uses: actions/checkout@v7
 
