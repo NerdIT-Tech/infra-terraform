@@ -11,30 +11,34 @@
 # set them as that repo's own TF_AWS_PLAN_ROLE_ARN/TF_AWS_APPLY_ROLE_ARN
 # Actions variables.
 
-# Looked up, not recreated -- AWS allows only one OIDC provider per URL per
-# account, and bootstrap/ already created (or adopted) this one.
-data "aws_iam_openid_connect_provider" "github_actions" {
-  url = "https://token.actions.githubusercontent.com"
-}
-
-data "aws_s3_bucket" "terraform_state" {
-  bucket = var.state_bucket_name
-}
+# ARNs constructed directly rather than looked up via data sources -- both
+# are fully deterministic from inputs already available (S3 bucket ARNs
+# have no account-ID component; the OIDC provider's ARN is just its fixed
+# URL path under this account). A data source lookup would need its own
+# IAM read grant (iam:ListOpenIDConnectProviders/GetOpenIDConnectProvider,
+# s3:GetBucketLocation) on the read-only plan role just to resolve
+# something computable from values already in hand -- unnecessary surface
+# for a role ADR-0010 deliberately keeps minimal. aws_caller_identity needs
+# no IAM grant at all (sts:GetCallerIdentity is allowed by default).
+data "aws_caller_identity" "current" {}
 
 locals {
+  oidc_provider_arn = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:oidc-provider/token.actions.githubusercontent.com"
+  state_bucket_arn  = "arn:aws:s3:::${var.state_bucket_name}"
+
   # State object + lockfile ARNs per repo, one pair per entry in that repo's
   # state_keys list (keyed the same as var.ci_repositories).
   ci_repo_state = {
     for name, cfg in var.ci_repositories : name => {
       state_object_arns = [
-        for key in cfg.state_keys : "${data.aws_s3_bucket.terraform_state.arn}/${key}"
+        for key in cfg.state_keys : "${local.state_bucket_arn}/${key}"
       ]
       # Native S3 locking (`use_lockfile`, Terraform >= 1.10) writes a companion
       # object at this path via conditional PutObject/DeleteObject -- a separate
       # object from the state itself, so the read-only plan role can take/release
       # the lock without ever gaining write access to the actual state data.
       state_lockfile_arns = [
-        for key in cfg.state_keys : "${data.aws_s3_bucket.terraform_state.arn}/${key}.tflock"
+        for key in cfg.state_keys : "${local.state_bucket_arn}/${key}.tflock"
       ]
     }
   }
@@ -55,7 +59,7 @@ data "aws_iam_policy_document" "plan_trust" {
     actions = ["sts:AssumeRoleWithWebIdentity"]
     principals {
       type        = "Federated"
-      identifiers = [data.aws_iam_openid_connect_provider.github_actions.arn]
+      identifiers = [local.oidc_provider_arn]
     }
     condition {
       test     = "StringEquals"
@@ -95,7 +99,7 @@ data "aws_iam_policy_document" "plan_state_access" {
     sid       = "StateBucketList"
     effect    = "Allow"
     actions   = ["s3:ListBucket"]
-    resources = [data.aws_s3_bucket.terraform_state.arn]
+    resources = [local.state_bucket_arn]
     condition {
       test     = "StringEquals"
       variable = "s3:prefix"
@@ -137,7 +141,7 @@ data "aws_iam_policy_document" "apply_trust" {
     actions = ["sts:AssumeRoleWithWebIdentity"]
     principals {
       type        = "Federated"
-      identifiers = [data.aws_iam_openid_connect_provider.github_actions.arn]
+      identifiers = [local.oidc_provider_arn]
     }
     condition {
       test     = "StringEquals"
@@ -170,7 +174,7 @@ data "aws_iam_policy_document" "apply_state_access" {
     sid       = "StateBucketList"
     effect    = "Allow"
     actions   = ["s3:ListBucket"]
-    resources = [data.aws_s3_bucket.terraform_state.arn]
+    resources = [local.state_bucket_arn]
     condition {
       test     = "StringEquals"
       variable = "s3:prefix"

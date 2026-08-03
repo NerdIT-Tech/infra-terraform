@@ -58,6 +58,21 @@ role scoped IAM-management permissions it didn't have before.
   `infra-terraform`'s own CI can create or modify *other* repos' roles, but
   can never touch its own, i.e. it can never grant itself more power than
   `bootstrap/` gave it by hand.
+- `infra-terraform`'s `plan` role gains the read-only half of that same
+  access (`iam:GetRole`, `iam:GetRolePolicy`, same `*-plan`/`*-apply`
+  scoping, no `Deny` needed since reads carry no privilege-escalation
+  risk) — every `terraform plan` refreshes each managed resource's real
+  state before showing a diff, not just `terraform apply`, so the
+  read-only role needs this permanently, not only for the one-time
+  `gitops` import.
+- `ci-roles.tf` resolves the OIDC provider's and state bucket's ARNs by
+  string construction (`data.aws_caller_identity` + the fixed, known-in-
+  advance ARN shape for each), not a `data "aws_iam_openid_connect_provider"`/
+  `data "aws_s3_bucket"` lookup — both are fully deterministic from inputs
+  already in hand, so resolving them declaratively would otherwise need
+  its own IAM read grant (`iam:ListOpenIDConnectProviders`/
+  `GetOpenIDConnectProvider`, `s3:GetBucketLocation`) on the `plan` role
+  for no benefit over just computing the string.
 - Every other repo's role pair — today just `gitops` — is generated in a
   new root `ci-roles.tf`, using the same `for_each = var.ci_repositories`
   shape `bootstrap/main.tf` used before this ADR (trust policy documents,

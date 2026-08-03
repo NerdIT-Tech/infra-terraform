@@ -259,14 +259,14 @@ resource "aws_iam_role_policy" "apply_state_access" {
   policy   = data.aws_iam_policy_document.apply_state_access[each.key].json
 }
 
-# --- IAM management: lets infra-terraform's own CI (via ci-roles.tf and
-# modules/terraform-ci-role/ in the main repo) create and maintain every
-# OTHER repo's plan/apply role pair -- without ever being able to touch its
-# own. Granting this here, in bootstrap/, is deliberate: this is itself a
-# change to what infra-terraform's apply role can do, so it goes through
-# the same hand-applied path as any other change to that role. See
-# ADR-0019, which supersedes ADR-0010's "nothing in CI ever creates or
-# modifies IAM roles" for repos other than this one.
+# --- IAM management: lets infra-terraform's own CI (via ci-roles.tf in the
+# main repo) create and maintain every OTHER repo's plan/apply role pair --
+# without ever being able to touch its own. Granting this here, in
+# bootstrap/, is deliberate: this is itself a change to what
+# infra-terraform's roles can do, so it goes through the same hand-applied
+# path as any other change to those roles. See ADR-0019, which supersedes
+# ADR-0010's "nothing in CI ever creates or modifies IAM roles" for repos
+# other than this one.
 
 data "aws_caller_identity" "current" {}
 
@@ -328,4 +328,33 @@ resource "aws_iam_role_policy" "apply_manages_other_repo_roles" {
   name   = "manage-other-repo-ci-roles"
   role   = aws_iam_role.apply["infra-terraform"].id
   policy = data.aws_iam_policy_document.apply_manages_other_repo_roles.json
+}
+
+# infra-terraform's *plan* role needs the read-only half of the same
+# access: ci-roles.tf's aws_iam_role/aws_iam_role_policy resources for
+# every other repo are refreshed (a Get call) on every plan, not just an
+# apply, and gitops's import {} blocks (imports.tf) need to read the real
+# resource during a plan to preview the import -- not just at apply time.
+# Read-only, so no Deny-self-modification statement is needed here the way
+# the apply role's policy above has one: there's no privilege-escalation
+# risk in letting the plan role read (not write) its own role/policy too.
+data "aws_iam_policy_document" "plan_reads_other_repo_roles" {
+  statement {
+    sid    = "ReadOtherRepoCiRoles"
+    effect = "Allow"
+    actions = [
+      "iam:GetRole",
+      "iam:GetRolePolicy",
+    ]
+    resources = [
+      "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/*-plan",
+      "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/*-apply",
+    ]
+  }
+}
+
+resource "aws_iam_role_policy" "plan_reads_other_repo_roles" {
+  name   = "read-other-repo-ci-roles"
+  role   = aws_iam_role.plan["infra-terraform"].id
+  policy = data.aws_iam_policy_document.plan_reads_other_repo_roles.json
 }
