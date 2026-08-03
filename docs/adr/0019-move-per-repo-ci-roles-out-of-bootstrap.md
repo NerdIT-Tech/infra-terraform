@@ -1,6 +1,6 @@
 # ADR-0019: Move per-repo CI IAM role generation out of bootstrap/, into the main repo
 
-**Status:** Accepted — supersedes 0010, amends 0017
+**Status:** Accepted — supersedes 0010, amends 0017; amended by [0020](0020-modularize-ci-roles.md)
 **Date:** 2026-08-02
 
 ## Context
