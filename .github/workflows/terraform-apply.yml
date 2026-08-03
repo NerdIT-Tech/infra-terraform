@@ -74,10 +74,10 @@ jobs:
         # Bounds a hung plan (seen stuck 31+ min with no bound before) so it
         # fails fast instead of sitting on the shared `terraform-state`
         # concurrency group and blocking every other PR/apply behind it.
+        timeout-minutes: 15
         uses: ./.github/actions/terraform-plan
         with:
           out-file: ${{ env.TF_PLAN_FILE }}
-          timeout-minutes: "15"
 
       # A plan step that's killed -- by manual cancellation or by the
       # timeout above -- doesn't get to release its own S3 native lock

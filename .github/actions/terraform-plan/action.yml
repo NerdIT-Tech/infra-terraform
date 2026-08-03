@@ -11,7 +11,9 @@ description: >-
   the inner failure before it reaches the outer step, so the outer step
   always reports "success" regardless of whether the plan actually failed.
   Check the `outcome` output instead -- it reflects the real pass/fail of
-  `terraform plan`, unaffected by continue-on-error.
+  `terraform plan`, unaffected by continue-on-error. To bound a hung plan,
+  set `timeout-minutes:` on the calling `uses:` step itself -- composite
+  action steps don't support that key, so it can't be an input here.
 
 inputs:
   out-file:
@@ -24,10 +26,6 @@ inputs:
       the `outcome` output instead.
     required: false
     default: "false"
-  timeout-minutes:
-    description: Minutes before a hung plan is killed.
-    required: false
-    default: "10"
   args:
     description: Additional arguments to pass to `terraform plan`.
     required: false
@@ -55,5 +53,4 @@ runs:
       shell: bash
       working-directory: ${{ inputs.working-directory }}
       continue-on-error: ${{ inputs.continue-on-error == 'true' }}
-      timeout-minutes: ${{ fromJSON(inputs.timeout-minutes) }}
       run: terraform plan -no-color -input=false -out=${{ inputs.out-file }} ${{ inputs.args }}

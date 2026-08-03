@@ -65,10 +65,10 @@ jobs:
           state-bucket: ${{ vars.TF_STATE_BUCKET }}
 
       - id: plan
+        timeout-minutes: 5
         uses: ./.github/actions/terraform-plan
         with:
           continue-on-error: "true"
-          timeout-minutes: "5"
 
       - uses: ./.github/actions/terraform-release-lock
         if: always()
