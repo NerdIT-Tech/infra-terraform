@@ -74,7 +74,7 @@ runs:
 
     - name: PR Title Lint Error
       uses: marocchino/sticky-pull-request-comment@v3
-      if: ${{ steps.lint-pr-title.outputs.error_message != null && inputs.no-comment != 'true'}}
+      if: ${{ !cancelled() && steps.lint-pr-title.outputs.error_message != null && inputs.no-comment != 'true' }}
       with:
         header: pr-title-lint-error
         message: |
