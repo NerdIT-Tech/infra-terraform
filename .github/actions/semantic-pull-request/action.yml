@@ -85,12 +85,12 @@ runs:
           Details:
           
           ```
-          ${{ steps.lint-pr-title.outputs.error }}
+          ${{ steps.lint-pr-title.outputs.error_message }}
           ```
 
     - name: Delete previous PR Title Lint Error
       uses: marocchino/sticky-pull-request-comment@v3
-      if: ${{ !cancelled() && steps.lint-pr-title.outputs.error_message == null && github.event_name == 'pull_request' }}
+      if: ${{ !cancelled() && steps.lint-pr-title.outputs.error_message == null && (github.event_name == 'pull_request' || github.event_name == 'pull_request_target') }}
       with:
         header: pr-title-lint-error
         delete: true
