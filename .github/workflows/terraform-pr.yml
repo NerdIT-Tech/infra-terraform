@@ -67,8 +67,6 @@ jobs:
       - id: plan
         timeout-minutes: 5
         uses: ./.github/actions/terraform-plan
-        with:
-          continue-on-error: "true"
 
       - uses: ./.github/actions/terraform-release-lock
         if: always()
