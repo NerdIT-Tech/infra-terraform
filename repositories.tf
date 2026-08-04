@@ -10,12 +10,26 @@ module "servicenow_sdk_for_go" {
   source = "./modules/github-repository"
 
   name        = "servicenow-sdk-for-go"
-  description = "Go SDK for the ServiceNow REST API." # TODO: confirm/edit description
+  description = "Go SDK for the ServiceNow REST API."
   visibility  = "public"
   topics      = ["servicenow", "sdk", "go", "golang"]
 
   gitignore_template = "Go"
   license_template   = "mit" # TODO: confirm license choice
+
+  enable_branch_protection        = true
+  required_approving_review_count = 1
+}
+
+module "dot_github" {
+  source = "./modules/github-repository"
+
+  name        = ".github"
+  description = "GitHub configuration files."
+  visibility  = "public"
+  topics      = ["github", "github-actions", "github-templates", "github-workflows"]
+
+  license_template = "mit" # TODO: confirm license choice
 
   enable_branch_protection        = true
   required_approving_review_count = 1
