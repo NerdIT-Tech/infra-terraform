@@ -82,11 +82,13 @@ runs:
 
           We require pull request titles to follow the [conventional commits](https://www.conventionalcommits.org/en/v1.0.0/) format. It looks like your proposed title needs to be adjusted.
 
-          Details:
+          <details><summary>Details:</summary>
           
           ```
           ${{ steps.lint-pr-title.outputs.error_message }}
           ```
+
+          </details>
 
     - name: Delete previous PR Title Lint Error
       uses: marocchino/sticky-pull-request-comment@v3
