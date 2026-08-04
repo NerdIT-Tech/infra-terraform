@@ -29,7 +29,7 @@ module "dot_github" {
   visibility  = "public"
   topics      = ["github", "github-actions", "github-templates", "github-workflows"]
 
-  license_template   = "mit" # TODO: confirm license choice
+  license_template = "mit" # TODO: confirm license choice
 
   enable_branch_protection        = true
   required_approving_review_count = 1
