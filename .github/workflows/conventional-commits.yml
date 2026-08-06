@@ -4,37 +4,26 @@ on:
   pull_request_target:
     types: [opened, edited, reopened, synchronize]
 
-permissions:
-  pull-requests: write
-  statuses: write
-
 jobs:
   lint-pr-title:
     name: Lint PR title
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-
-      - uses: ./.github/actions/semantic-pull-request
-        with:
-          types: |
-            feat
-            fix
-            docs
-            style
-            refactor
-            perf
-            test
-            chore
-            build
-            ci
-          requireScope: true
-          scopes: |
-            github
-            ci
-            devcontainer
-            bootstrap
-            terraform
-            docs
-          subjectPattern: "^#[0-9]+.*$"
-          exampleCommitTitle: "feat(ci): #1234 add new feature"
+    # Pinned by commit SHA, not a tag: reusable-semantic-pr-title.yml isn't
+    # one of NerdIT-Tech/.github's release-please packages (only the
+    # composite actions under .github/actions/ are), so it has no version
+    # tag of its own yet to pin to instead.
+    uses: NerdIT-Tech/.github/.github/workflows/reusable-semantic-pr-title.yml@91574e3d91b05b4120d6851fda2d64eea493f65d
+    permissions:
+      contents: read
+      pull-requests: write
+      statuses: write
+    with:
+      # Only override needed: types/requireScope/subjectPattern/exampleCommitTitle
+      # already match the reusable workflow's defaults (copied from this
+      # repo's own config when it was ported to NerdIT-Tech/.github).
+      scopes: |
+        github
+        ci
+        devcontainer
+        bootstrap
+        terraform
+        docs
