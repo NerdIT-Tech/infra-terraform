@@ -1,0 +1,23 @@
+name: YAML Lint
+
+on:
+  pull_request:
+    types:
+      - opened
+      - reopened
+      - synchronize
+    paths:
+      - "**.yml"
+      - "**.yaml"
+
+concurrency:
+  group: yaml-lint-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  lint-yaml:
+    name: Lint YAML
+    # Pinned by commit SHA -- see conventional-commits.yml for why.
+    uses: NerdIT-Tech/.github/.github/workflows/reusable-yaml-lint.yml@91574e3d91b05b4120d6851fda2d64eea493f65d
+    permissions:
+      contents: read

@@ -1,0 +1,23 @@
+name: Actionlint
+
+on:
+  pull_request:
+    types:
+      - opened
+      - reopened
+      - synchronize
+    paths:
+      - ".github/workflows/**"
+      - ".github/actions/**"
+
+concurrency:
+  group: actionlint-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  actionlint:
+    name: Lint workflow files
+    # Pinned by commit SHA -- see conventional-commits.yml for why.
+    uses: NerdIT-Tech/.github/.github/workflows/reusable-actionlint.yml@91574e3d91b05b4120d6851fda2d64eea493f65d
+    permissions:
+      contents: read
