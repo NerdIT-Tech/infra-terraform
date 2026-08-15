@@ -32,7 +32,14 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - uses: ./.github/actions/terraform-lint-scan
+      # Composite actions below are pinned to NerdIT-Tech/.github's floating
+      # major-version tags (its own convention -- see its
+      # .github/actions/README.md), not a commit SHA: unlike the reusable
+      # workflows in conventional-commits.yml/yaml-lint.yml/actionlint.yml,
+      # every composite action here is a release-please package with real
+      # version tags. Each is a direct, behavior-preserving port of this
+      # repo's former local action of the same name (#58).
+      - uses: NerdIT-Tech/.github/.github/actions/terraform-lint-scan@terraform-lint-scan/v1
         with:
           terraform-version: ${{ env.TF_VERSION }}
 
@@ -57,7 +64,7 @@ jobs:
       # Read-only role (bootstrap/main.tf's `plan` role): can read state and
       # take/release the lock, but has no S3 write permission at all -- a PR
       # plan can't corrupt state no matter what it plans (ADR-0010).
-      - uses: ./.github/actions/terraform-init-s3
+      - uses: NerdIT-Tech/.github/.github/actions/terraform-init-s3@terraform-init-s3/v1
         with:
           terraform-version: ${{ env.TF_VERSION }}
           role-to-assume: ${{ vars.TF_AWS_PLAN_ROLE_ARN }}
@@ -66,9 +73,9 @@ jobs:
 
       - id: plan
         timeout-minutes: 5
-        uses: ./.github/actions/terraform-plan
+        uses: NerdIT-Tech/.github/.github/actions/terraform-plan@terraform-plan/v1
 
-      - uses: ./.github/actions/terraform-release-lock
+      - uses: NerdIT-Tech/.github/.github/actions/terraform-release-lock@terraform-release-lock/v1
         if: always()
         with:
           state-bucket: ${{ vars.TF_STATE_BUCKET }}
@@ -83,7 +90,3 @@ jobs:
           name: tfplan
           path: ${{ steps.plan.outputs.out-file }}
           retention-days: 5
-
-      - name: Fail if plan failed
-        if: steps.plan.outputs.outcome == 'failure'
-        run: exit 1

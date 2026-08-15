@@ -172,7 +172,14 @@ to add for that.
 
 ## CI/CD
 
-Three workflows under `.github/workflows/`, plus Dependabot:
+Five workflows under `.github/workflows/`, plus Dependabot. Most of the
+underlying logic — the composite actions `terraform-pr.yml`/
+`terraform-apply.yml` call, and the reusable `workflow_call` workflows
+`conventional-commits.yml`/`yaml-lint.yml`/`actionlint.yml` call — lives in
+[`NerdIT-Tech/.github`](https://github.com/NerdIT-Tech/.github), pinned by
+version tag (or commit SHA where no tag exists yet); see
+[ADR-0021](docs/adr/0021-migrate-plan-apply-actions-to-shared-repo.md) for
+why and what stayed local (`.github/actions/semantic-pull-request`).
 
 - **`terraform-pr.yml`** — runs on every pull request that touches `*.tf`
   files: `fmt -check`, `validate`, TFLint, a Trivy config scan, then a
@@ -201,6 +208,11 @@ Three workflows under `.github/workflows/`, plus Dependabot:
 - **`conventional-commits.yml`** — lints the PR title (only) against
   [Conventional Commits](https://www.conventionalcommits.org/)
   ([ADR-0006](docs/adr/0006-conventional-commit-title-only.md)).
+- **`yaml-lint.yml`** — lints every `*.yml`/`*.yaml` file in the repo
+  against `.yamllint.yml` on PRs that touch one.
+- **`actionlint.yml`** — lints `.github/workflows/**` and
+  `.github/actions/**` with [`actionlint`](https://github.com/rhysd/actionlint)
+  on PRs that touch either.
 - **Dependabot** (`.github/dependabot.yml`) — weekly updates for Terraform,
   GitHub Actions, and devcontainer versions
   ([ADR-0007](docs/adr/0007-dependabot-scope.md)).

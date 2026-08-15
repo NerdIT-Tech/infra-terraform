@@ -32,3 +32,4 @@ history — see ADR-0004 for an example of amending ADR-0003.
 | [0018](0018-plan-role-trusts-optional-repo-environment-claim.md) | Plan/apply role trust names each repo's environment gate, not a hardcoded "production" | Accepted |
 | [0019](0019-move-per-repo-ci-roles-out-of-bootstrap.md) | Move per-repo CI IAM role generation out of bootstrap/, into the main repo | Accepted — supersedes 0010, amends 0017; amended by 0020 |
 | [0020](0020-modularize-ci-roles.md) | Modularize per-repo CI IAM role generation into `modules/aws/tf-iams` | Accepted — amends 0019 |
+| [0021](0021-migrate-plan-apply-actions-to-shared-repo.md) | Migrate `terraform-pr.yml`/`terraform-apply.yml`'s composite actions to NerdIT-Tech/.github | Accepted |
