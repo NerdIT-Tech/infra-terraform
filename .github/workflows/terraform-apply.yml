@@ -53,7 +53,10 @@ jobs:
 
       # Read-only role: this job only reads state (to fmt/refresh a fresh
       # plan on the fallback path) and never writes it -- only the apply
-      # job below gets write access (ADR-0010).
+      # job below gets write access (ADR-0010). terraform-init-s3 internally
+      # does `uses: ./.github/actions/terraform-init`, which resolves against
+      # this repo's checkout -- that's why terraform-init stays local (see
+      # terraform-pr.yml, ADR-0021).
       - uses: NerdIT-Tech/.github/.github/actions/terraform-init-s3@terraform-init-s3/v1
         with:
           terraform-version: ${{ env.TF_VERSION }}
