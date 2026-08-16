@@ -58,6 +58,8 @@ module "tplink_omada_sdk_for_go" {
   # once that's done -- website/ still ships the docs.yml workflow that needs
   # Pages source set to "GitHub Actions" to publish (#63).
   enable_pages = false
+  # (no-op comment: forces a fresh CI plan against current state, since
+  # main's terraform-apply.yml run for #64 failed partway through)
 }
 
 module "pkg_linux" {
