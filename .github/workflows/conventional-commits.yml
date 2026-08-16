@@ -27,3 +27,4 @@ jobs:
         bootstrap
         terraform
         docs
+        deps
