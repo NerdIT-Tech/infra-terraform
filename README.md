@@ -24,7 +24,9 @@ teams/permissions/etc. as they're added later.
   doesn't create the App itself — GitHub has no API for that outside the
   interactive manifest flow — see
   [Adding a managed App installation](#adding-a-managed-app-installation).
-- `repositories.tf` — one `module` block per repository this org manages.
+- `repositories.tf` — one `module` block per repository this org manages,
+  including `infra-terraform` itself
+  ([ADR-0023](docs/adr/0023-manage-infra-terraform-repo-via-normal-pipeline.md)).
 - `github-app-installations.tf` — one `module` block per GitHub App
   installation whose repository access this org manages.
 - `ci-roles.tf` — one `modules/aws/tf-iams` call per entry in
@@ -274,16 +276,20 @@ In the repo's **Settings**:
    - `AWS_REGION`, `TF_STATE_BUCKET`, `TF_AWS_PLAN_ROLE_ARN`,
      `TF_AWS_APPLY_ROLE_ARN` — see
      [One-time AWS setup](#one-time-aws-setup).
-3. **Settings → Branches** → add a protection rule for `main` requiring
-   the `Plan` (from `terraform-pr.yml`) and `Lint PR title` status checks,
-   and "Require branches to be up to date before merging" (see
-   [ADR-0004](docs/adr/0004-reuse-pr-plan-on-merge.md) for why the latter
-   matters).
-4. **Settings → General → Pull Requests** → uncheck "Allow merge commits"
-   and "Allow rebase merging", keep "Allow squash merging" checked, and set
-   "Default commit message for squash merges" to **"Pull request title"**
-   ([ADR-0008](docs/adr/0008-squash-merge-only.md)).
+3. **Settings → General → Pull Requests** → set "Default commit message for
+   squash merges" to **"Pull request title"**
+   ([ADR-0008](docs/adr/0008-squash-merge-only.md)) — the one merge-related
+   setting the `github_repository` resource doesn't expose, so it stays a
+   manual one-time step even though the merge-method toggles below don't.
+
+Everything else — branch protection requiring the `Plan` and `Lint PR
+title` status checks, "Require branches to be up to date before merging",
+and the squash-only merge-method toggles — is itself Terraform-managed via
+`repositories.tf`'s `module "infra_terraform"` block, the same as every
+other repo this org manages ([ADR-0023](docs/adr/0023-manage-infra-terraform-repo-via-normal-pipeline.md)).
+It takes effect on this repo's own first `terraform apply`, not a manual
+Settings step.
 
 Once `bootstrap/` has run and the variables above are set, no further setup
 is needed — the first `terraform apply` against the new backend starts from
-an empty state and creates everything.
+an empty state and creates everything (including this repo's own settings).

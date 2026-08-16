@@ -6,6 +6,28 @@
 # `topics = ["infrastructure", ...]` -- see ADR-0014. This replaces naming
 # convention (an `infra-` prefix) as the way to identify them.
 
+# infra-terraform manages its own repo settings the same way it manages
+# every other repo here -- there's no chicken-and-egg blocking it the way
+# there is for its own AWS credentials (bootstrap/README.md): the GitHub
+# App (ADR-0001) already has Administration/Contents access to this repo
+# independent of anything Terraform has created, so the normal plan-gated
+# CI pipeline (ADR-0003) can safely apply changes here too. The repo
+# already existed, so this is adopted via imports.tf rather than created
+# fresh -- see ADR-0023.
+module "infra_terraform" {
+  source = "./modules/github-repository"
+
+  name        = "infra-terraform"
+  description = "Terraform for NerdIT-Tech's GitHub-managed assets -- repositories, CI IAM roles, and GitHub App installation access."
+  visibility  = "public"
+  topics      = ["infrastructure", "terraform"]
+  auto_init   = false # importing a repo that already has content -- see modules/github-repository/variables.tf
+
+  enable_branch_protection        = true
+  required_approving_review_count = 0 # solo-maintained today; raise this the day a second reviewer is added
+  required_status_checks          = ["Plan", "Lint PR title"]
+}
+
 module "servicenow_sdk_for_go" {
   source = "./modules/github-repository"
 

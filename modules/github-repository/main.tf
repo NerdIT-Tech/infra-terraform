@@ -25,8 +25,16 @@ resource "github_repository" "this" {
   # Pages is managed via the separate github_repository_pages resource
   # below when enable_pages is set -- ignore_changes here stops this
   # resource's own refresh from fighting that one over the pages block.
+  #
+  # prevent_destroy guards against a repo disappearing as a side effect of
+  # editing repositories.tf (a module block removed by a bad refactor or a
+  # botched merge conflict) -- deleting a GitHub repo through Terraform must
+  # be a deliberate two-step act (drop this line in its own reviewed PR,
+  # then apply the destroy), never a side effect a normal plan can carry
+  # out unnoticed. See ADR-0023.
   lifecycle {
-    ignore_changes = [pages]
+    ignore_changes  = [pages]
+    prevent_destroy = true
   }
 }
 
