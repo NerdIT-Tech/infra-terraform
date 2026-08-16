@@ -49,6 +49,12 @@ variable "has_wiki" {
   default     = false
 }
 
+variable "enable_pages" {
+  description = "Enable GitHub Pages, built from a GitHub Actions workflow (not the legacy branch-based build)."
+  type        = bool
+  default     = false
+}
+
 variable "has_projects" {
   description = "Enable GitHub Projects for the repository."
   type        = bool

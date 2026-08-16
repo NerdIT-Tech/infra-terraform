@@ -21,6 +21,13 @@ resource "github_repository" "this" {
   allow_merge_commit     = var.allow_merge_commit
   allow_rebase_merge     = var.allow_rebase_merge
   delete_branch_on_merge = var.delete_branch_on_merge
+
+  # Pages is managed via the separate github_repository_pages resource
+  # below when enable_pages is set -- ignore_changes here stops this
+  # resource's own refresh from fighting that one over the pages block.
+  lifecycle {
+    ignore_changes = [pages]
+  }
 }
 
 resource "github_repository_vulnerability_alerts" "this" {
@@ -28,6 +35,13 @@ resource "github_repository_vulnerability_alerts" "this" {
 
   repository = github_repository.this.name
   enabled    = true
+}
+
+resource "github_repository_pages" "this" {
+  count = var.enable_pages ? 1 : 0
+
+  repository = github_repository.this.name
+  build_type = "workflow"
 }
 
 resource "github_branch_protection" "default" {

@@ -48,6 +48,11 @@ module "tplink_omada_sdk_for_go" {
 
   enable_branch_protection        = true
   required_approving_review_count = 0
+
+  # website/ ships a docs.yml workflow that builds and deploys a Docusaurus
+  # site to Pages via actions/deploy-pages -- needs the repo's Pages source
+  # set to "GitHub Actions" for that to actually publish (#63).
+  enable_pages = true
 }
 
 module "pkg_linux" {
