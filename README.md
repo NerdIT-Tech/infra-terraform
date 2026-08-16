@@ -18,7 +18,15 @@ teams/permissions/etc. as they're added later.
   IAM role pair: OIDC trust (branches, GitHub Actions environment, and/or
   specific workflow files) plus scoped Terraform state S3 access
   ([ADR-0020](docs/adr/0020-modularize-ci-roles.md)).
+- `modules/github-app-installation/` — reusable module wrapping
+  `github_app_installation_repositories`, the authoritative/declarative
+  resource for which repos an already-installed GitHub App can access. It
+  doesn't create the App itself — GitHub has no API for that outside the
+  interactive manifest flow — see
+  [Adding a managed App installation](#adding-a-managed-app-installation).
 - `repositories.tf` — one `module` block per repository this org manages.
+- `github-app-installations.tf` — one `module` block per GitHub App
+  installation whose repository access this org manages.
 - `ci-roles.tf` — one `modules/aws/tf-iams` call per entry in
   `var.ci_repositories`, generating an AWS plan/apply IAM role pair for
   every Terraform-consuming repo *other than* `infra-terraform` itself (see
@@ -40,6 +48,28 @@ Copy the `module "servicenow_sdk_for_go"` block in `repositories.tf`, give it
 a new module name and `name`, and adjust the other arguments. See
 `modules/github-repository/variables.tf` for everything that's configurable
 (visibility, topics, merge settings, branch protection, etc).
+
+### Adding a managed App installation
+
+GitHub Apps themselves can't be created via Terraform — the API only
+supports the interactive manifest flow or the web UI, never a plain
+declarative call. What Terraform *can* manage is which repos an
+already-installed App has access to.
+
+1. Create the App (same shape as [Authentication's one-time
+   setup](#one-time-setup) below, but for the new App instead of this
+   repo's own): **Settings → Developer settings → GitHub Apps → New GitHub
+   App**, set the permissions it actually needs, then install it on
+   `NerdIT-Tech`.
+2. During install, choose **Only select repositories** — Terraform manages
+   the selection from here, so it's fine to start with none/any subset.
+3. Note the installation's ID from its URL
+   (`github.com/organizations/NerdIT-Tech/settings/installations/<id>`).
+4. Copy the commented-out example block in `github-app-installations.tf`,
+   give it a module name, and set `installation_id` and the full list of
+   `repositories` it should have access to. This list is authoritative —
+   any repo added to the installation outside Terraform is removed on the
+   next apply.
 
 ### Adding a Terraform-consuming repo
 
@@ -94,7 +124,11 @@ token ([ADR-0001](docs/adr/0001-github-app-auth.md)).
    - **Contents**: Read & write (branch protection, initial commit)
    - **Metadata**: Read-only (required baseline)
    - Add more later as this repo grows to manage more asset types (e.g.
-     **Members**/**Administration** at the org level for teams).
+     **Members**/**Administration** at the org level for teams, or
+     **Organization administration** if this App will manage *other* Apps'
+     installation repository access via `modules/github-app-installation`
+     — TODO: confirm the exact permission GitHub requires for that call
+     once it's actually exercised).
 3. Create the App, note the **App ID**.
 4. Generate a **private key** (downloads a `.pem` file) — store it somewhere
    outside this repo, e.g. a secrets manager or local path excluded from git.
