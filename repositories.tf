@@ -62,6 +62,21 @@ module "tplink_omada_sdk_for_go" {
   # main's terraform-apply.yml run for #64 failed partway through)
 }
 
+module "terraform_provider_omada" {
+  source = "./modules/github-repository"
+
+  name        = "terraform-provider-omada"
+  description = "Terraform provider for the TP-Link Omada Controller API, built on tplink-omada-sdk-for-go." # TODO: confirm/edit description
+  visibility  = "public"
+  topics      = ["terraform-provider", "omada", "tplink", "go", "golang"]
+
+  gitignore_template = "Go"
+  license_template   = "mit" # TODO: confirm license choice
+
+  enable_branch_protection        = true
+  required_approving_review_count = 1
+}
+
 module "pkg_linux" {
   source = "./modules/github-repository"
 
