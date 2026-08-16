@@ -34,3 +34,4 @@ history — see ADR-0004 for an example of amending ADR-0003.
 | [0020](0020-modularize-ci-roles.md) | Modularize per-repo CI IAM role generation into `modules/aws/tf-iams` | Accepted — amends 0019 |
 | [0021](0021-migrate-plan-apply-actions-to-shared-repo.md) | Migrate `terraform-pr.yml`/`terraform-apply.yml`'s composite actions to NerdIT-Tech/.github | Accepted |
 | [0022](0022-github-app-installation-repo-access.md) | Manage GitHub App installation repository access, not App creation | Accepted |
+| [0023](0023-manage-infra-terraform-repo-via-normal-pipeline.md) | Manage infra-terraform's own repo via the normal pipeline, not a bootstrap | Accepted |
