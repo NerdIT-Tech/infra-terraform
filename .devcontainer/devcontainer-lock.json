@@ -16,9 +16,9 @@
       "integrity": "sha256:d22f50b70ed75339b4eed1ba9ecde3a1791f90e88d37936517e3bace0bbad671"
     },
     "ghcr.io/devcontainers/features/terraform:1": {
-      "version": "1.4.5",
-      "resolved": "ghcr.io/devcontainers/features/terraform@sha256:a286b8c7586de5de9bc8057a54fca53f8732896aef456326efe6e9dc8c36977d",
-      "integrity": "sha256:a286b8c7586de5de9bc8057a54fca53f8732896aef456326efe6e9dc8c36977d",
+      "version": "1.5.0",
+      "resolved": "ghcr.io/devcontainers/features/terraform@sha256:bc9eaf21aaba050bace59f411c282cb58058535a48232c059e60c19f86caa8f5",
+      "integrity": "sha256:bc9eaf21aaba050bace59f411c282cb58058535a48232c059e60c19f86caa8f5",
       "dependsOn": [
         "ghcr.io/devcontainers/features/github-cli:1"
       ]
