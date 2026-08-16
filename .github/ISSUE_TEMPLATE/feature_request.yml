@@ -1,0 +1,29 @@
+name: Feature / repo request
+description: A new repo to manage, a new asset type, or a change to how this config works.
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What's needed
+      description: >
+        E.g. "add repo X to repositories.tf", "manage GitHub teams",
+        "add a new CI role for repo Y".
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: Why
+    validations:
+      required: true
+  - type: textarea
+    id: tradeoffs
+    attributes:
+      label: Trade-offs / alternatives considered
+      description: >
+        If this touches something an ADR covers (auth, state/backend,
+        CI/CD, branch protection, merge conventions, module structure),
+        check docs/adr/README.md first and note anything relevant here.
+    validations:
+      required: false

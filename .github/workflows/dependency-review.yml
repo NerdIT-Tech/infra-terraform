@@ -1,0 +1,24 @@
+name: Dependency Review
+
+on:
+  pull_request:
+    # This repo has no application dependency manifests (no go.mod/package.json/etc.)
+    # -- the only dependency-graph-tracked ecosystem here is GitHub Actions,
+    # so scope this to files that can actually change an action's pinned
+    # version/ref.
+    paths:
+      - ".github/workflows/**"
+      - ".github/actions/**"
+
+permissions:
+  contents: read
+
+jobs:
+  dependency-review:
+    name: Scan dependency changes
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/dependency-review-action@v4
+        with:
+          fail-on-severity: high
