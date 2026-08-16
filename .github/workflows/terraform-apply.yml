@@ -42,13 +42,19 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      # Composite actions below are ported to NerdIT-Tech/.github and pinned
+      # to its floating major-version tags (see terraform-pr.yml for the
+      # general rationale, #58). resolve-pr is the one exception: only its
+      # exact resolve-pr/v1.0.0 tag exists upstream so far, no floating
+      # resolve-pr/v1 major tag yet -- pin to the exact tag until that
+      # appears, then switch to resolve-pr/v1 like the others below.
       - id: resolve
-        uses: ./.github/actions/resolve-pr
+        uses: NerdIT-Tech/.github/.github/actions/resolve-pr@resolve-pr/v1.0.0
 
       # Read-only role: this job only reads state (to fmt/refresh a fresh
       # plan on the fallback path) and never writes it -- only the apply
       # job below gets write access (ADR-0010).
-      - uses: ./.github/actions/terraform-init-s3
+      - uses: NerdIT-Tech/.github/.github/actions/terraform-init-s3@terraform-init-s3/v1
         with:
           terraform-version: ${{ env.TF_VERSION }}
           role-to-assume: ${{ vars.TF_AWS_PLAN_ROLE_ARN }}
@@ -75,7 +81,7 @@ jobs:
         # fails fast instead of sitting on the shared `terraform-state`
         # concurrency group and blocking every other PR/apply behind it.
         timeout-minutes: 15
-        uses: ./.github/actions/terraform-plan
+        uses: NerdIT-Tech/.github/.github/actions/terraform-plan@terraform-plan/v1
         with:
           out-file: ${{ env.TF_PLAN_FILE }}
 
@@ -87,26 +93,11 @@ jobs:
       # terraform's own exit, so this is a harmless no-op then. Runs
       # unconditionally -- on the reuse path no lock was ever taken, so
       # this is just a no-op there.
-      - uses: ./.github/actions/terraform-release-lock
+      - uses: NerdIT-Tech/.github/.github/actions/terraform-release-lock@terraform-release-lock/v1
         if: always()
         with:
           state-bucket: ${{ vars.TF_STATE_BUCKET }}
           aws-region: ${{ vars.AWS_REGION }}
-
-      - name: Write plan to job summary
-        env:
-          SOURCE_PR: ${{ steps.resolve.outputs.pr-number }}
-        run: |
-          {
-            if [ -n "$SOURCE_PR" ]; then
-              echo "### Terraform Plan (reused from PR #${SOURCE_PR})";
-            else
-              echo "### Terraform Plan";
-            fi
-            echo '```';
-            terraform show -no-color ${{ env.TF_PLAN_FILE }};
-            echo '```';
-          } >> "$GITHUB_STEP_SUMMARY"
 
       # Handed to the apply job as artifacts rather than re-reading the
       # cache there, so apply always operates on exactly what was planned
@@ -140,7 +131,7 @@ jobs:
 
       # Read-write role: only this job ever gets S3 write access, and only
       # on main under the `production` environment gate (ADR-0010).
-      - uses: ./.github/actions/terraform-init-s3
+      - uses: NerdIT-Tech/.github/.github/actions/terraform-init-s3@terraform-init-s3/v1
         with:
           terraform-version: ${{ env.TF_VERSION }}
           role-to-assume: ${{ vars.TF_AWS_APPLY_ROLE_ARN }}
