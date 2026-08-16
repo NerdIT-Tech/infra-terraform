@@ -49,10 +49,17 @@ module "tplink_omada_sdk_for_go" {
   enable_branch_protection        = true
   required_approving_review_count = 0
 
-  # website/ ships a docs.yml workflow that builds and deploys a Docusaurus
-  # site to Pages via actions/deploy-pages -- needs the repo's Pages source
-  # set to "GitHub Actions" for that to actually publish (#63).
-  enable_pages = true
+  # enable_pages is temporarily disabled: the Terraform GitHub App (ADR-0001)
+  # doesn't have the Pages repository permission, so `terraform apply` fails
+  # with "403 Resource not accessible by integration" on every run until
+  # someone with admin access widens the App's permissions on GitHub's side
+  # (ADR-0001's consequence: "the two have to be kept in sync manually since
+  # the App's grants aren't themselves managed by this Terraform"). Re-enable
+  # once that's done -- website/ still ships the docs.yml workflow that needs
+  # Pages source set to "GitHub Actions" to publish (#63).
+  enable_pages = false
+  # (no-op comment: forces a fresh CI plan against current state, since
+  # main's terraform-apply.yml run for #64 failed partway through)
 }
 
 module "pkg_linux" {
