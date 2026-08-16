@@ -40,14 +40,14 @@ jobs:
       # version tags. Each is a direct, behavior-preserving port of this
       # repo's former local action of the same name (#58).
       #
-      # terraform-lint-scan internally does `uses: ./.github/actions/{
-      # terraform-fmt,terraform-init,terraform-validate,tflint}` -- and a
-      # composite action's `./`-relative uses:, like a reusable workflow's,
-      # ALWAYS resolves against the top-level caller's checkout (this repo),
-      # never against the repo that hosts the composite action itself. So
-      # those four local actions have to stay even though terraform-lint-scan
-      # no longer runs from here (see ADR-0021 -- this cost a broken CI run
-      # to learn).
+      # terraform-lint-scan/v1 (>= the terraform-lint-scan/v1.0.1 fix)
+      # references its own sibling actions (terraform-fmt, terraform-init,
+      # terraform-validate, tflint) fully-qualified against NerdIT-Tech/.github
+      # instead of ./-relative, so none of those four need a local copy here
+      # -- see ADR-0021 for why a composite action's ./-relative uses:
+      # resolves against the top-level caller's checkout, not the repo that
+      # hosts the composite action, and why that briefly required keeping
+      # local copies of all four (NerdIT-Tech/.github#36).
       - uses: NerdIT-Tech/.github/.github/actions/terraform-lint-scan@terraform-lint-scan/v1
         with:
           terraform-version: ${{ env.TF_VERSION }}

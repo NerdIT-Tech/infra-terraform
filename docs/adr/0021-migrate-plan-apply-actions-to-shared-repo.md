@@ -58,18 +58,32 @@ the exact `resolve-pr/v1.0.0` tag instead, since `NerdIT-Tech/.github` has
 not yet cut a floating `resolve-pr/v1` major tag (every other action already
 has one) — switch it to `resolve-pr/v1` once that tag exists.
 
-Only `trivy-scan` is deleted from the local action set — nothing calls it
-anymore, since `NerdIT-Tech/.github`'s `terraform-lint-scan` inlines its
+`trivy-scan` is deleted outright from the local action set — nothing calls
+it anymore, since `NerdIT-Tech/.github`'s `terraform-lint-scan` inlines its
 Trivy step directly rather than through a wrapper action.
+
 `terraform-fmt`, `terraform-init`, `terraform-validate`, and `tflint`
-**stay local**, alongside `semantic-pull-request`, for the reason established
-above: `NerdIT-Tech/.github`'s `terraform-lint-scan` and `terraform-init-s3`
-each reference these by `./.github/actions/<name>` internally, and that
-resolves against *this* repo's checkout no matter which repo hosts
-`terraform-lint-scan`/`terraform-init-s3` themselves. `terraform-plan`,
-`terraform-release-lock`, and `resolve-pr` have no such nested local
-references (checked directly against their `NerdIT-Tech/.github` source),
-so those three don't need local copies of anything.
+initially had to stay local too, for the reason established above:
+`terraform-lint-scan` and `terraform-init-s3` each referenced these by
+`./.github/actions/<name>` internally, which resolves against *this* repo's
+checkout no matter which repo hosts `terraform-lint-scan`/`terraform-init-s3`
+themselves. **This was filed upstream as
+[NerdIT-Tech/.github#36](https://github.com/NerdIT-Tech/.github/issues/36)
+and fixed there** (PR [#37](https://github.com/NerdIT-Tech/.github/pull/37)):
+`terraform-lint-scan` and `terraform-init-s3` now reference their siblings
+fully-qualified (`NerdIT-Tech/.github/.github/actions/terraform-init@terraform-init/v1`,
+etc.) instead of `./`-relative. Once `terraform-lint-scan/v1` and
+`terraform-init-s3/v1` actually pointed at that fix (see Consequences —
+`terraform-lint-scan`'s release got stuck and needed manual repair), all
+four local leaf actions became genuinely redundant and were deleted.
+`semantic-pull-request` is the one local action that still can't go: see
+[NerdIT-Tech/.github#34](https://github.com/NerdIT-Tech/.github/issues/34)
+— unlike `terraform-lint-scan`/`terraform-init-s3`, `reusable-semantic-pr-title.yml`
+still references it `./`-relatively as of this writing, and that issue
+remains open upstream. `terraform-plan`, `terraform-release-lock`, and
+`resolve-pr` never had any nested local references (checked directly
+against their `NerdIT-Tech/.github` source), so those three never needed
+local copies of anything.
 
 ## Alternatives considered
 
@@ -106,26 +120,33 @@ so those three don't need local copies of anything.
 - A future fix to `terraform-lint-scan`, `terraform-init-s3` (their own
   top-level logic), `terraform-plan`, or `terraform-release-lock` happens in
   `NerdIT-Tech/.github`, not here, and this repo picks it up automatically
-  the next time that action's `v1` tag moves. A fix to the *leaf* actions
-  (`terraform-fmt`/`terraform-init`/`terraform-validate`/`tflint`) does
-  **not** flow through automatically — this repo's local copies have to be
-  manually kept in sync with `NerdIT-Tech/.github`'s (or, if `.github`
-  changes the way `terraform-lint-scan`/`terraform-init-s3` reference their
-  siblings, e.g. to an explicit `NerdIT-Tech/.github/...@ref` instead of
-  `./`, revisit deleting these four entirely).
+  the next time that action's `v1` tag moves.
 - `resolve-pr` needs a one-line follow-up (`resolve-pr/v1.0.0` →
   `resolve-pr/v1`) once `NerdIT-Tech/.github` cuts that action's first
   floating major tag — a deliberate, tracked gap, not an oversight.
-- `.github/actions/` in this repo now holds five actions:
-  `semantic-pull-request`, `terraform-fmt`, `terraform-init`,
-  `terraform-validate`, `tflint` — all kept for the same reason (a
-  `NerdIT-Tech/.github` workflow or composite action references them via a
-  `./`-relative path, which always resolves against *this* repo's checkout,
-  never against `NerdIT-Tech/.github`'s own). Before deleting any local
-  action as "redundant now that it's in `.github`," grep
-  `NerdIT-Tech/.github` for a `./.github/actions/<name>` reference to it —
-  if one exists anywhere in the call chain a workflow here invokes, the
-  local copy has to stay.
+- `.github/actions/` in this repo now holds exactly one action,
+  `semantic-pull-request`, kept because a `NerdIT-Tech/.github` *reusable
+  workflow* still references it via a `./`-relative path, which always
+  resolves against *this* repo's checkout, never against
+  `NerdIT-Tech/.github`'s own (NerdIT-Tech/.github#34, still open). Before
+  deleting it as "redundant now that it's in `.github`," re-check whether
+  #34 has actually been fixed upstream — don't assume from `.github`'s own
+  tag/release state, since (see below) a tag moving doesn't reliably mean
+  the underlying reference was fixed.
+- **`NerdIT-Tech/.github`'s own release automation is not fully reliable**,
+  learned the hard way getting `terraform-lint-scan/v1` to actually reflect
+  its #36 fix: `release-please-action`'s run for the `terraform-lint-scan`
+  1.0.1 release PR merge reported `paths_released: []` and silently skipped
+  tag/release creation entirely — traced to a collision between
+  release-please's expected PR-title pattern and this org's own
+  `requireScope`-required PR-title lint (filed as
+  [NerdIT-Tech/.github#42](https://github.com/NerdIT-Tech/.github/issues/42)).
+  Fixed here by manually creating the missing tag/release and correcting
+  `NerdIT-Tech/.github`'s manifest, but this means **a version tag existing
+  upstream is not, by itself, proof that a given fix landed in it** — when a
+  fix is safety-critical for this repo's CI, verify the actual file content
+  at that tag/ref, not just that some tag with a higher version number
+  exists.
 - Trust in `NerdIT-Tech/.github` now extends to steps that assume this
   repo's OIDC-federated AWS roles (`terraform-init-s3`) and write/read this
   repo's Terraform state lock (`terraform-plan`, `terraform-release-lock`)
