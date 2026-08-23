@@ -11,7 +11,7 @@ jobs:
     # one of NerdIT-Tech/.github's release-please packages (only the
     # composite actions under .github/actions/ are), so it has no version
     # tag of its own yet to pin to instead.
-    uses: NerdIT-Tech/.github/.github/workflows/reusable-semantic-pr-title.yml@91574e3d91b05b4120d6851fda2d64eea493f65d
+    uses: NerdIT-Tech/.github/.github/workflows/reusable-semantic-pr-title.yml@d2e8e341f3c86067944425fdc3aa9c400edd2c4a
     permissions:
       contents: read
       pull-requests: write
