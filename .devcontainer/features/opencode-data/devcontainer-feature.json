@@ -1,0 +1,7 @@
+{
+    "id": "opencode-data",
+    "version": "1.0.0",
+    "name": "Persist OpenCode data",
+    "description": "Ensures the remote user's OpenCode data (~/.local/share/opencode) and config (~/.config/opencode) directories exist with correct ownership before they are mounted as persistent named volumes, so OpenCode's sessions, state, and configuration survive container rebuilds. Pair with matching 'mounts' entries in devcontainer.json -- this feature only prepares the directories, it does not declare the mounts itself.",
+    "options": {}
+}
