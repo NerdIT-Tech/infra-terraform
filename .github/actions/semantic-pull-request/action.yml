@@ -51,10 +51,43 @@ inputs:
       Example of a valid PR title.
     required: false
     default: "feat(ci): #1234 add new feature"
+  issueRequiredLabel:
+    type: string
+    description: >-
+      PR label that waives the #N subject requirement. The action creates the
+      label if it doesn't exist.
+    required: false
+    default: "no-issue-required"
 
 runs:
   using: composite
   steps:
+    - name: Resolve subject pattern (label waiver)
+      id: subject-pattern
+      shell: bash
+      run: |
+        if [[ "${{ contains(github.event.pull_request.labels.*.name, inputs.issueRequiredLabel) }}" == "true" ]]; then
+          echo "subjectPattern=" >> "$GITHUB_OUTPUT"
+        else
+          echo "subjectPattern=${{ inputs.subjectPattern }}" >> "$GITHUB_OUTPUT"
+        fi
+
+    - name: Ensure issue-required-label exists
+      if: ${{ github.event_name == 'pull_request' || github.event_name == 'pull_request_target' }}
+      shell: bash
+      run: |
+        label="${{ inputs.issueRequiredLabel }}"
+        repo="${{ github.repository }}"
+        if ! gh api "repos/${repo}/labels/${label}" >/dev/null 2>&1; then
+          gh api "repos/${repo}/labels" \
+            -f name="$label" \
+            -f color="ededed" \
+            -f description="Dependency bump without an issue reference" \
+            >/dev/null
+        fi
+      env:
+        GH_TOKEN: ${{ github.token }}
+
     - name: Lint PR title
       id: lint-pr-title
       uses: amannn/action-semantic-pull-request@v6
@@ -65,7 +98,7 @@ runs:
         types: ${{ inputs.types }}
         requireScope: ${{ inputs.requireScope }}
         scopes: ${{ inputs.scopes }}
-        subjectPattern: ${{ inputs.subjectPattern }}
+        subjectPattern: ${{ steps.subject-pattern.outputs.subjectPattern }}
         subjectPatternError: |
           The subject "{subject}" found in the pull request title "{title}" didn't match the configured pattern. Please ensure that the subject matches the following pattern.
 
@@ -83,7 +116,7 @@ runs:
           We require pull request titles to follow the [conventional commits](https://www.conventionalcommits.org/en/v1.0.0/) format. It looks like your proposed title needs to be adjusted.
 
           <details><summary>Details:</summary>
-          
+
           ```
           ${{ steps.lint-pr-title.outputs.error_message }}
           ```
