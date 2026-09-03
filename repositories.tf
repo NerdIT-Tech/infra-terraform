@@ -159,6 +159,18 @@ module "infra_runners" {
   enable_branch_protection = false
 }
 
+module "devcontainer_features" {
+  source = "./modules/github-repository"
+
+  name        = "devcontainer-features"
+  description = "Centralized Dev Container features shared across NerdIT-Tech repositories."
+  visibility  = "public"
+  topics      = ["infrastructure", "devcontainer", "devcontainer-features"]
+
+  enable_branch_protection        = true
+  required_approving_review_count = 1
+}
+
 module "gitops" {
   source = "./modules/github-repository"
 
