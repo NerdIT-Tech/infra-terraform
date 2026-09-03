@@ -37,7 +37,17 @@ Individual commits within a branch are never linted.
 - `Dependabot`'s own PRs must produce titles that pass this check too —
   that's why `.github/dependabot.yml` sets a `commit-message.prefix`
   (`chore`/`ci`) per ecosystem rather than leaving Dependabot's default
-  titles as-is.
+  titles as-is. That prefix plus `include: "scope"` yields titles like
+  `chore(deps): bump hashicorp/aws from 6.57.1 to 6.59.0` — conventional in
+  type/scope, but the subject can never begin with the issue reference
+  (`#N`) the `subjectPattern` lens for human PRs requires, because a
+  dependency bump has no associated issue. Rather than weaken that rule for
+  everyone, the local `semantic-pull-request` action waives *only* the
+  `#N`-subject requirement for any PR carrying a `no-issue-required` label
+  (Dependabot adds it to its own PRs via `.github/dependabot.yml`); the
+  type and scope checks still apply identically to those PRs. Any human PR
+  that genuinely can't reference an issue can opt in to the same label, but
+  this is the exception, not the default.
 - Because this runs on `pull_request_target`, the workflow file itself is
   read from `main`, not from the PR branch — a PR can't alter or disable
   this check on itself even if it edits `conventional-commits.yml`.
