@@ -14,10 +14,9 @@ fi
 install_dir="$(mktemp -d)"
 
 if [ "${VERSION:-latest}" = "latest" ] || [ -z "${VERSION:-}" ]; then
-  VERSION=""
+  VERSION="" # reset or else the installer will error out if VERSION is set to "latest"
   curl -fsSL https://opencode.ai/install | HOME="$install_dir" bash -s -- --no-modify-path
 else
-  echo "$VERSION"
   curl -fsSL https://opencode.ai/install | HOME="$install_dir" VERSION="$VERSION" bash -s -- --no-modify-path
 fi
 
