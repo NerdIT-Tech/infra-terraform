@@ -66,7 +66,7 @@ jobs:
       # re-planning, so apply never runs anything that wasn't reviewed.
       - name: Download plan from merged PR
         if: steps.resolve.outputs.pr-number != ''
-        uses: dawidd6/action-download-artifact@v21
+        uses: dawidd6/action-download-artifact@v24
         with:
           workflow: terraform-pr.yml
           pr: ${{ steps.resolve.outputs.pr-number }}
