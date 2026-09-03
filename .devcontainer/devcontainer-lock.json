@@ -15,11 +15,6 @@
       "resolved": "ghcr.io/devcontainers/features/github-cli@sha256:94879eebb6a0e4e2f197de9f12db7427cb4a25b82d93c55239ce8c8fc394a1b4",
       "integrity": "sha256:94879eebb6a0e4e2f197de9f12db7427cb4a25b82d93c55239ce8c8fc394a1b4"
     },
-    "ghcr.io/devcontainers/features/github-cli:1": {
-      "version": "1.1.1",
-      "resolved": "ghcr.io/devcontainers/features/github-cli@sha256:94879eebb6a0e4e2f197de9f12db7427cb4a25b82d93c55239ce8c8fc394a1b4",
-      "integrity": "sha256:94879eebb6a0e4e2f197de9f12db7427cb4a25b82d93c55239ce8c8fc394a1b4"
-    },
     "ghcr.io/devcontainers/features/terraform:1": {
       "version": "1.5.0",
       "resolved": "ghcr.io/devcontainers/features/terraform@sha256:bc9eaf21aaba050bace59f411c282cb58058535a48232c059e60c19f86caa8f5",
@@ -37,11 +32,6 @@
       "version": "1.0.1",
       "resolved": "ghcr.io/roul/devcontainer-features/bitwarden-cli@sha256:1de09a6fcf3c58095a633ae3019328193c7119dbbbbaf24037b201195e0a8b25",
       "integrity": "sha256:1de09a6fcf3c58095a633ae3019328193c7119dbbbbaf24037b201195e0a8b25"
-    },
-    "ghcr.io/stu-bell/devcontainer-features/claude-code:0": {
-      "version": "0.1.0",
-      "resolved": "ghcr.io/stu-bell/devcontainer-features/claude-code@sha256:f87b4da3f8648db9111cb25c6bd3817d096018d81f3fb596340f7ffdba14409a",
-      "integrity": "sha256:f87b4da3f8648db9111cb25c6bd3817d096018d81f3fb596340f7ffdba14409a"
     }
   }
 }
