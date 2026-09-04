@@ -23,6 +23,16 @@
         "ghcr.io/devcontainers/features/github-cli:1"
       ]
     },
+    "ghcr.io/nerdit-tech/devcontainer-features/opencode:0": {
+      "version": "0.1.1",
+      "resolved": "ghcr.io/nerdit-tech/devcontainer-features/opencode@sha256:a2a0c36addfda0f335de0bfe030b2b933059cde18c11eb020c72b557e704e0e2",
+      "integrity": "sha256:a2a0c36addfda0f335de0bfe030b2b933059cde18c11eb020c72b557e704e0e2"
+    },
+    "ghcr.io/nerdit-tech/devcontainer-features/opencode-data:0": {
+      "version": "0.1.0",
+      "resolved": "ghcr.io/nerdit-tech/devcontainer-features/opencode-data@sha256:9432c4094e4afd8101a26974e3ae745e587588643ee03f7038de2c975b32e1e7",
+      "integrity": "sha256:9432c4094e4afd8101a26974e3ae745e587588643ee03f7038de2c975b32e1e7"
+    },
     "ghcr.io/jasonthedeveloper/features/trivy:1": {
       "version": "1.0.0",
       "resolved": "ghcr.io/jasonthedeveloper/features/trivy@sha256:c2f95d6884821376bec12a7b778fce22dbfc41267bda00c2d09e653eea18345b",
