@@ -190,3 +190,15 @@ module "gitops" {
 
   enable_branch_protection = false
 }
+
+module "adr" {
+  source = "./modules/github-repository"
+
+  name        = "adr"
+  description = "Architecture Decision Records (ADRs) at the org level."
+  visibility  = "public"
+  topics      = ["infrastructure", "adr", "documentation"]
+
+  enable_branch_protection        = true
+  required_approving_review_count = 1
+}
