@@ -1,0 +1,36 @@
+name: Bug report
+description: Something in this Terraform config, module, or workflow is broken.
+labels: ["bug"]
+body:
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What did you expect, and what happened instead?
+    validations:
+      required: true
+  - type: textarea
+    id: where
+    attributes:
+      label: Where
+      description: >
+        Affected file(s)/module(s)/workflow(s) (e.g.
+        modules/aws/tf-iams, terraform-apply.yml, a specific repo's
+        module block in repositories.tf).
+    validations:
+      required: true
+  - type: textarea
+    id: plan-output
+    attributes:
+      label: Relevant plan/apply output
+      description: Paste the relevant `terraform plan`/`apply` output or CI log, if any.
+      render: shell
+    validations:
+      required: false
+  - type: textarea
+    id: additional-context
+    attributes:
+      label: Additional context
+      description: Anything else that would help (links to a PR, run, or ADR).
+    validations:
+      required: false
