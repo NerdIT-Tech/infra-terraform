@@ -191,6 +191,18 @@ module "gitops" {
   enable_branch_protection = false
 }
 
+module "ai_tools" {
+  source = "./modules/github-repository"
+
+  name        = "ai-tools"
+  description = "Agents, skills, and other AI tooling shared across NerdIT-Tech repos."
+  visibility  = "public"
+  topics      = ["infrastructure", "ai", "agents", "skills"]
+
+  enable_branch_protection        = true
+  required_approving_review_count = 1
+}
+
 module "adr" {
   source = "./modules/github-repository"
 
