@@ -1,7 +1,15 @@
 # ADR-0015: `terraform-pr.yml`'s path filter must be a superset of `terraform-apply.yml`'s
 
-**Status:** Accepted — amends 0004
+**Status:** Superseded by ADR-0024 — amends 0004
 **Date:** 2026-07-26
+
+> **Superseded by ADR-0024:** `terraform-pr.yml` now runs on *every* PR (no
+> path filter) so the required `Plan` check always reports, with the
+> `validate`/`plan` jobs short-circuiting to a no-op when no terraform files
+> changed. The superset invariant this ADR establishes still holds — now
+> trivially, since the PR workflow is unconditional — but the mechanism (a
+> `paths` filter that must mirror `terraform-apply.yml`'s) no longer exists.
+> See ADR-0024 instead.
 
 ## Context
 
