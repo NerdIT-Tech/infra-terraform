@@ -191,6 +191,28 @@ module "gitops" {
   enable_branch_protection = false
 }
 
+module "homeassistant_iac" {
+  source = "./modules/github-repository"
+
+  name        = "homeassistant-iac"
+  description = "IaC for Home Assistant deployment and related infrastructure."
+  visibility  = "public"
+  topics      = ["infrastructure", "home-assistant", "terraform", "iac"]
+  auto_init   = false
+
+  has_wiki     = false
+  has_projects = true
+
+  allow_squash_merge     = true
+  allow_merge_commit     = true
+  allow_rebase_merge     = false
+  delete_branch_on_merge = true
+
+  enable_branch_protection        = true
+  required_approving_review_count = 0 # solo-maintained today
+  required_status_checks          = ["Plan", "Lint PR title"]
+}
+
 module "ai_tools" {
   source = "./modules/github-repository"
 
