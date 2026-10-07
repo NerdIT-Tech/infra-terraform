@@ -212,3 +212,28 @@ module "homeassistant_iac" {
   required_approving_review_count = 0 # solo-maintained today
   required_status_checks          = ["Plan", "Lint PR title"]
 }
+
+module "ai_tools" {
+  source = "./modules/github-repository"
+
+  name        = "ai-tools"
+  description = "Agents, skills, and other AI tooling shared across NerdIT-Tech repos."
+  visibility  = "public"
+  topics      = ["infrastructure", "ai", "agents", "skills"]
+
+  enable_branch_protection        = true
+  required_approving_review_count = 1
+}
+
+module "adr" {
+  source = "./modules/github-repository"
+
+  name        = "adr"
+  description = "Architecture Decision Records (ADRs) at the org level."
+  visibility  = "public"
+  topics      = ["infrastructure", "adr", "documentation"]
+
+  enable_branch_protection        = true
+  required_approving_review_count = 1
+}
+}
