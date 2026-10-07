@@ -236,4 +236,3 @@ module "adr" {
   enable_branch_protection        = true
   required_approving_review_count = 1
 }
-}
