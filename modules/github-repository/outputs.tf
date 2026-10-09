@@ -1,3 +1,8 @@
+output "name" {
+  description = "Repository name, as passed to var.name -- exposed so other configs (e.g. github-app-installations.tf) can reference it instead of retyping the string."
+  value       = github_repository.this.name
+}
+
 output "full_name" {
   description = "Full repository name, in \"owner/name\" form."
   value       = github_repository.this.full_name
