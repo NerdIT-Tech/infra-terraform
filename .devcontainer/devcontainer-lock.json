@@ -1,5 +1,10 @@
 {
   "features": {
+    "ghcr.io/devcontainers-extra/features/claude-code:2": {
+      "version": "2.0.3",
+      "resolved": "ghcr.io/devcontainers-extra/features/claude-code@sha256:e119fb3524e9e55d47b84ee32b20085dbeae66f08d8e298e59c57a94f02d5b35",
+      "integrity": "sha256:e119fb3524e9e55d47b84ee32b20085dbeae66f08d8e298e59c57a94f02d5b35"
+    },
     "ghcr.io/devcontainers-extra/features/tflint:1": {
       "version": "1.0.0",
       "resolved": "ghcr.io/devcontainers-extra/features/tflint@sha256:667d2ae4f28687b9222818a2aeb2ff5e1f1b45b7430f0a5d99ecab1ea4f05284",
@@ -9,11 +14,6 @@
       "version": "1.1.4",
       "resolved": "ghcr.io/devcontainers/features/aws-cli@sha256:1f93c8315b7a6d76982ebb2269f8b0d50413fc0f965c032edf4aee0caceb73ef",
       "integrity": "sha256:1f93c8315b7a6d76982ebb2269f8b0d50413fc0f965c032edf4aee0caceb73ef"
-    },
-    "ghcr.io/devcontainers/features/github-cli:1": {
-      "version": "1.1.3",
-      "resolved": "ghcr.io/devcontainers/features/github-cli@sha256:bd7ab48a832228f633239277552c30b353867fef2e5b037e064b4e64f0b843f2",
-      "integrity": "sha256:bd7ab48a832228f633239277552c30b353867fef2e5b037e064b4e64f0b843f2"
     },
     "ghcr.io/devcontainers/features/github-cli:1": {
       "version": "1.1.3",
@@ -33,15 +33,10 @@
       "resolved": "ghcr.io/jasonthedeveloper/features/trivy@sha256:c2f95d6884821376bec12a7b778fce22dbfc41267bda00c2d09e653eea18345b",
       "integrity": "sha256:c2f95d6884821376bec12a7b778fce22dbfc41267bda00c2d09e653eea18345b"
     },
-    "ghcr.io/nerdit-tech/devcontainer-features/opencode-data:0": {
+    "ghcr.io/nerdit-tech/devcontainer-features/claude-cache:0": {
       "version": "0.1.1",
-      "resolved": "ghcr.io/nerdit-tech/devcontainer-features/opencode-data@sha256:4d969871d630e5206e85079feb3c03512cd39202bcc857402e7a68b8941fff75",
-      "integrity": "sha256:4d969871d630e5206e85079feb3c03512cd39202bcc857402e7a68b8941fff75"
-    },
-    "ghcr.io/nerdit-tech/devcontainer-features/opencode:0": {
-      "version": "0.1.1",
-      "resolved": "ghcr.io/nerdit-tech/devcontainer-features/opencode@sha256:a2a0c36addfda0f335de0bfe030b2b933059cde18c11eb020c72b557e704e0e2",
-      "integrity": "sha256:a2a0c36addfda0f335de0bfe030b2b933059cde18c11eb020c72b557e704e0e2"
+      "resolved": "ghcr.io/nerdit-tech/devcontainer-features/claude-cache@sha256:1416a48e9ca4f3925fb5902e85b9996b9b81afc2305aaf80fbde593c710fae95",
+      "integrity": "sha256:1416a48e9ca4f3925fb5902e85b9996b9b81afc2305aaf80fbde593c710fae95"
     },
     "ghcr.io/roul/devcontainer-features/bitwarden-cli:1": {
       "version": "1.0.1",

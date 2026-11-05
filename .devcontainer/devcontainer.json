@@ -7,7 +7,10 @@
         "ghcr.io/devcontainers-extra/features/tflint:1": {},
         "ghcr.io/jasonthedeveloper/features/trivy:1": {},
         "ghcr.io/devcontainers/features/github-cli:1": {},
-        "ghcr.io/nerdit-tech/devcontainer-features/opencode:0": {},
-        "ghcr.io/nerdit-tech/devcontainer-features/opencode-data:0": {}
+        "ghcr.io/devcontainers-extra/features/claude-code:2": {},
+        "ghcr.io/nerdit-tech/devcontainer-features/claude-cache:0": {}
+    },
+    "postStartCommand": {
+        "git-signing": "git config --global gpg.format ssh && git config --global commit.gpgsign true && git config --global tag.gpgsign true && git config --global gpg.ssh.defaultKeyCommand 'sh -c \"echo key::$(ssh-add -L | head -n1)\"'"
     }
 }
